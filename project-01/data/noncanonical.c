@@ -69,16 +69,21 @@ int main(int argc, char** argv)
     }
 
     printf("New termios structure set\n");
-
+    int characters = 0;
+    char line[254];
 
     while (STOP==FALSE) {       /* loop for input */
-      res = read(fd,buf,255);   /* returns after 5 chars have been input */
+      res = read(fd,buf,1);   /* returns after 5 chars have been input */
+      if (buf[0]=='\0') STOP=TRUE;
+      line[characters]=buf[0];
+      characters+=1;
       buf[res]=0;               /* so we can printf... */
-      printf(":%s:%d\n", buf, res);
       if (buf[0]=='z') STOP=TRUE;
     }
+    printf("%s:%d\n", line,characters-1);
 
-
+    line[characters+1]="\0";
+    res = write(fd,line,strlen(line)+1);
 
   /* 
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o 
