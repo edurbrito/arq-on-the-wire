@@ -71,14 +71,10 @@ int main(int argc, char **argv)
 
   printf("New termios structure set\n");
 
+  char a[5] = {0x7E, 0x03, 0x01, 0x02, 0x7E};
 
-
-
-  // ADD CODE HERE
-
-
-
-
+  res = write(fd, a, 5); // Writes 5 bytes
+  printf("%d bytes written \n", res);
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {

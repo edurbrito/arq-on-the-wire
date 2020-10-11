@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
+#include <unistd.h>
+#include "utils.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -12,6 +14,8 @@
 #define TRUE 1
 
 volatile int STOP = FALSE;
+
+tram t = {0x0, 0x0, 0x0, 0x0, START};
 
 int main(int argc, char **argv)
 {
@@ -54,7 +58,7 @@ int main(int argc, char **argv)
   newtio.c_lflag = 0;
 
   newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
-  newtio.c_cc[VMIN] = 5;  /* blocking read until 5 chars received */
+  newtio.c_cc[VMIN] = 1;  /* blocking read until 5 chars received */
 
   /* 
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
@@ -71,14 +75,21 @@ int main(int argc, char **argv)
 
   printf("New termios structure set\n");
 
+  while (t.state != SSTOP)
+  {
+    char a;
+    res = read(fd, &a, 1);
 
+    if(res <= 0){
+      perror("Error");
+      break;
+    }
 
+    t.state = getState(a, &t);
+    printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t.state, t.flag, t.a, t.c, t.bcc, t.flag);
+  }
 
-  // ADD CODE HERE
-
-
-
-
+  printf("ENDED LOOP %x%x%x%x%x\n", t.flag, t.a, t.c, t.bcc, t.flag);
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {
