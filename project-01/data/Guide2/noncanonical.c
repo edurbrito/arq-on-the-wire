@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 
   /* 
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
+    leitura do(s) proximo(s) caracter(es)
   */
 
   tcflush(fd, TCIOFLUSH);
