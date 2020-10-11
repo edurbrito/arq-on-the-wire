@@ -72,32 +72,22 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
-    char line[254];
-    char *result;
- 
-    printf("Please enter a string:\n");
-    if ((result = gets(line)) != NULL);
-    else if (ferror(stdin))
-        perror("Error");
+
+    /*   Write   */
+
+    char a[5] = {0x7E, 0x03, 0x01, 0x00, 0x7E};
     
     /*testing*/
-    buf[strlen(line)] = '\0';
     
-    res = write(fd,line,strlen(line)+1);   
-    printf("%d bytes written\n", res-1);
+    res = write(fd,a,5);   // Writes 1 byte
+    printf("%d bytes written %x \n", res, a);
 
     int characters = 0;
     char received[254];
 
-    while (STOP==FALSE) {       /* loop for input */
-      res = read(fd,buf,1);   /* returns after 5 chars have been input */
-      if (buf[0]=='\0') STOP=TRUE;
-      received[characters]=buf[0];
-      characters+=1;
-      buf[res]=0;               /* so we can printf... */
-      if (buf[0]=='z') STOP=TRUE;
-    }
-    printf("%s:%d\n", received,characters-1);
+    res = read(fd,a,5); 
+
+    printf("%c\n", a[0]);
  
 
   /* 

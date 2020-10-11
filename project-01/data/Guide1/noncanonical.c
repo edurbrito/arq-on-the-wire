@@ -12,6 +12,50 @@
 #define TRUE 1
 
 volatile int STOP=FALSE;
+my_state_t state = START;
+
+typedef enum
+{
+    START,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    STOP
+} my_state_t;
+
+void currentState(char input)
+{
+    switch(input)
+    {
+        case 0x7E:
+          if (state == BCC_OK)
+            state = STOP;
+          else
+            state = FLAG_RCV;
+          break;
+        case 0x03:
+          if(state == FLAG_RCV)
+            state = A_RCV;
+          if(state == A_RCV)
+            state = C_RCV;
+          else
+            state = START;
+          break;
+        case 0x0B:
+        case 0x07:
+        case 0x05:
+        case 0x01:
+        case 0x81:
+        case 0x85:
+          if(state == A_RCV)
+            state = BCC_OK;
+          else
+            state = START;
+          break;
+        // Missing C -> BCC
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -69,21 +113,14 @@ int main(int argc, char** argv)
     }
 
     printf("New termios structure set\n");
-    int characters = 0;
-    char line[254];
 
-    while (STOP==FALSE) {       /* loop for input */
-      res = read(fd,buf,1);   /* returns after 5 chars have been input */
-      if (buf[0]=='\0') STOP=TRUE;
-      line[characters]=buf[0];
-      characters+=1;
-      buf[res]=0;               /* so we can printf... */
-      if (buf[0]=='z') STOP=TRUE;
-    }
-    printf("%s:%d\n", line,characters-1);
+    char a[5];
 
-    line[characters+1]="\0";
-    res = write(fd,line,strlen(line)+1);
+    res = read(fd,a,5); 
+
+    printf("%c%c%c%c%c\n", a[0], a[1], a[2], a[3], a[4]);
+
+    res = write(fd,a,5);
 
   /* 
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o 
