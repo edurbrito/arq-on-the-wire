@@ -10,7 +10,7 @@ ssh-keygen -R 172.17.0.3
 ssh root@172.17.0.3
 
 >Socat
-socat -d  -d  PTY,link=/dev/ttyS10,mode=777   PTY,link=/dev/ttyS11,mode=777
+socat -d  -d  PTY,link=/dev/ttyS10,mode=777   PTY,link=/dev/ttyS11,mode=777 &
 
 > Start Docker Service if not Available
 sudo systemctl start docker 
