@@ -4,18 +4,47 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include "utils.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define MAX_RETR 3
+#define TIMEOUT 3
 
-volatile int STOP = FALSE;
+volatile int num_retr = MAX_RETR;
+int fd = 0, res = 0;
+tram *t;
 
-int main(int argc, char **argv)
+void send_set()
 {
-  int fd, c, res;
+  char a[5] = {0x7E, 0x03, 0x03, 0x00, 0x7E};
+  res = write(fd, a, 5); // Writes 5 bytes
+  printf("%d bytes written \n", res);
+}
+
+void alarmHandler(int signum)
+{
+  if (signum == SIGALRM)
+  {
+    if (num_retr > 0 && t->state != SSTOP)
+    {
+      printf("ALARM SET SEND %d ##########\n", num_retr);
+      send_set();
+      alarm(3);
+      num_retr--;
+    }
+  }
+}
+
+int main(int argc, char **argv) {
+
   struct termios oldtio, newtio;
   char buf[255];
 
@@ -71,10 +100,32 @@ int main(int argc, char **argv)
 
   printf("New termios structure set\n");
 
-  char a[5] = {0x7E, 0x03, 0x01, 0x02, 0x7E};
+  signal(SIGALRM, alarmHandler);
 
-  res = write(fd, a, 5); // Writes 5 bytes
-  printf("%d bytes written \n", res);
+  t = init_stm(EMITTER);
+
+  send_set();
+
+  alarm(3);
+
+  while (t->state != SSTOP)
+  {
+    char a;
+    res = read(fd, &a, 1);
+
+    if (res <= 0)
+    {
+      perror("Error");
+      break;
+    }
+
+    t->state = getState(a, t);
+    printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t->state, t->flag, t->a, t->c, t->bcc, t->flag);
+  }
+
+  printf("ENDED LOOP %x%x%x%x%x\n", t->flag, t->a, t->c, t->bcc, t->flag);
+
+  free(t);
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {

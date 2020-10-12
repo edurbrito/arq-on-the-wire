@@ -6,16 +6,14 @@
 #include <termios.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include "utils.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-
-volatile int STOP = FALSE;
-
-tram t = {0x0, 0x0, 0x0, 0x0, START};
 
 int main(int argc, char **argv)
 {
@@ -75,7 +73,9 @@ int main(int argc, char **argv)
 
   printf("New termios structure set\n");
 
-  while (t.state != SSTOP)
+  tram * t = init_stm(RECEIVER);
+
+  while (t->state != SSTOP)
   {
     char a;
     res = read(fd, &a, 1);
@@ -85,11 +85,18 @@ int main(int argc, char **argv)
       break;
     }
 
-    t.state = getState(a, &t);
-    printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t.state, t.flag, t.a, t.c, t.bcc, t.flag);
+    t->state = getState(a, t);
+    printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t->state, t->flag, t->a, t->c, t->bcc, t->flag);
   }
 
-  printf("ENDED LOOP %x%x%x%x%x\n", t.flag, t.a, t.c, t.bcc, t.flag);
+  printf("ENDED LOOP %x%x%x%x%x\n", t->flag, t->a, t->c, t->bcc, t->flag);
+
+  char a[5] = {t->flag, t->a, 0x07, 0x04, t->flag};
+
+  res = write(fd, a, 5); // Writes 5 bytes
+  printf("%d bytes written \n", res);
+
+  free(t);
 
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
   {

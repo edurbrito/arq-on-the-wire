@@ -1,2 +1,2 @@
-gcc writenoncanonical.c -o a.o
-gcc noncanonical.c utils.h -o b.o
+gcc emitter.c -o a.o
+gcc receiver.c utils.h -o b.o
