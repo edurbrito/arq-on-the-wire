@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 
   tram * t = init_stm(RECEIVER);
 
-  while (t->state != SSTOP)
+  while (t->state != STOP)
   {
     char a;
     res = read(fd, &a, 1);

@@ -33,7 +33,7 @@ void alarmHandler(int signum)
 {
   if (signum == SIGALRM)
   {
-    if (num_retr > 0 && t->state != SSTOP)
+    if (num_retr > 0 && t->state != STOP)
     {
       printf("ALARM SET SEND %d ##########\n", num_retr);
       send_set();
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 
   alarm(3);
 
-  while (t->state != SSTOP)
+  while (t->state != STOP)
   {
     char a;
     res = read(fd, &a, 1);

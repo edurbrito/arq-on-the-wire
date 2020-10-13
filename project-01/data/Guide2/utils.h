@@ -20,7 +20,7 @@ typedef enum
     A_RCV,
     C_RCV,
     BCC_OK,
-    SSTOP
+    STOP
 } my_state_t;
 
 typedef struct
@@ -89,7 +89,7 @@ my_state_t cState(char input, tram *t)
 my_state_t bccState(char input, tram *t)
 {
     if (input == 0x7E)
-        return SSTOP;
+        return STOP;
     return START;
 }
 
@@ -107,8 +107,8 @@ my_state_t getState(char input, tram *t)
         return cState(input, t);
     case BCC_OK:
         return bccState(input, t);
-    case SSTOP:
-        return SSTOP;
+    case STOP:
+        return STOP;
     default:
         return startState(input, t);
     }
