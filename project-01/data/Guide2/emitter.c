@@ -40,6 +40,11 @@ void alarmHandler(int signum)
       alarm(3);
       num_retr--;
     }
+    else if(num_retr <= 0 && t->state != STOP)
+    {
+      printf("NO ANSWER RECEIVED\n");
+      exit(1);
+    }
   }
 }
 
