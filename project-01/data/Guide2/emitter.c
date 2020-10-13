@@ -24,7 +24,7 @@ tram *t;
 
 void send_set()
 {
-  char a[5] = {0x7E, 0x03, 0x03, 0x00, 0x7E};
+  unsigned char a[5] = {0x7E, 0x03, 0x03, 0x00, 0x7E};
   res = write(fd, a, 5); // Writes 5 bytes
   printf("%d bytes written \n", res);
 }
@@ -51,8 +51,6 @@ void alarmHandler(int signum)
 int main(int argc, char **argv) {
 
   struct termios oldtio, newtio;
-  char buf[255];
-
   if ((argc < 2) ||
       ((strcmp("/dev/ttyS10", argv[1]) != 0) &&
        (strcmp("/dev/ttyS11", argv[1]) != 0)))
@@ -115,7 +113,7 @@ int main(int argc, char **argv) {
 
   while (t->state != STOP)
   {
-    char a;
+    unsigned char a;
     res = read(fd, &a, 1);
 
     if (res <= 0)

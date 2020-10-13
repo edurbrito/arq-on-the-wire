@@ -19,7 +19,6 @@ int main(int argc, char **argv)
 {
   int fd, c, res;
   struct termios oldtio, newtio;
-  char buf[255];
 
   if ((argc < 2) ||
       ((strcmp("/dev/ttyS10", argv[1]) != 0) &&
@@ -77,7 +76,7 @@ int main(int argc, char **argv)
 
   while (t->state != STOP)
   {
-    char a;
+    unsigned char a;
     res = read(fd, &a, 1);
 
     if(res <= 0){
@@ -91,7 +90,7 @@ int main(int argc, char **argv)
 
   printf("ENDED LOOP %x%x%x%x%x\n", t->flag, t->a, t->c, t->bcc, t->flag);
 
-  char a[5] = {t->flag, t->a, 0x07, 0x04, t->flag};
+  unsigned char a[5] = {t->flag, t->a, 0x07, 0x04, t->flag};
 
   res = write(fd, a, 5); // Writes 5 bytes
   printf("%d bytes written \n", res);

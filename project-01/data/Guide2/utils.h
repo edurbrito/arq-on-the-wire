@@ -26,10 +26,10 @@ typedef enum
 typedef struct
 {
     user u;
-    char flag;
-    char a;
-    char c;
-    char bcc;
+    unsigned char flag;
+    unsigned char a;
+    unsigned char c;
+    unsigned char bcc;
     my_state_t state;
 } tram;
 
@@ -40,7 +40,7 @@ tram * init_stm(user u) {
     return t;
 }
 
-my_state_t startState(char input, tram *t)
+my_state_t startState(unsigned char input, tram *t)
 {
     if (input == 0x7E)
     {
@@ -50,7 +50,7 @@ my_state_t startState(char input, tram *t)
     return START;
 }
 
-my_state_t flagState(char input, tram *t)
+my_state_t flagState(unsigned char input, tram *t)
 {
     if (input == 0x03)
     {
@@ -62,7 +62,7 @@ my_state_t flagState(char input, tram *t)
     return START;
 }
 
-my_state_t aState(char input, tram *t)
+my_state_t aState(unsigned char input, tram *t)
 {
     if ((input == SET && t->u == RECEIVER) || (input == UA && t->u == EMITTER)) // SET || UA
     {
@@ -74,7 +74,7 @@ my_state_t aState(char input, tram *t)
     return START;
 }
 
-my_state_t cState(char input, tram *t)
+my_state_t cState(unsigned char input, tram *t)
 {
     if (input == (t->a ^ t->c))
     {
@@ -86,14 +86,14 @@ my_state_t cState(char input, tram *t)
     return START;
 }
 
-my_state_t bccState(char input, tram *t)
+my_state_t bccState(unsigned char input, tram *t)
 {
     if (input == 0x7E)
         return STOP;
     return START;
 }
 
-my_state_t getState(char input, tram *t)
+my_state_t getState(unsigned char input, tram *t)
 {
     switch (t->state)
     {
