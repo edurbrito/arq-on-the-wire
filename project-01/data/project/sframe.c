@@ -5,35 +5,8 @@
 #include <termios.h>
 #include <string.h>
 #include "sframe.h"
+#include "app.h"
 
-typedef enum // Supervision Frame State
-{
-    START,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    STOP
-} sf_state;
-
-typedef struct // Supervision Frame Struct
-{
-    user u;
-    unsigned char flag;
-    unsigned char a;
-    unsigned char c;
-    unsigned char bcc;
-    sf_state state;
-    int port;
-    volatile int num_retr;
-} sframe;
-
-/**
- * Inits the Supervision State Machine
- * @param port port file descriptor
- * @param u user Type
- * @return sframe pointer to struct
-*/
 sframe *sf_init_stm(int port, user u)
 {
     sframe *t = malloc(sizeof(sframe));
@@ -44,28 +17,16 @@ sframe *sf_init_stm(int port, user u)
     return t;
 }
 
-/**
- * Start State for STM
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state 
-*/
 sf_state sf_startState(unsigned char input, sframe *t)
 {
     if (input == FLAG)
     {
-        t->flag = input;
+        t->flag1 = input;
         return FLAG_RCV;
     }
     return START;
 }
 
-/**
- * Flag State for STM
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state 
-*/
 sf_state sf_flagState(unsigned char input, sframe *t)
 {
     if (input == A1)
@@ -78,12 +39,6 @@ sf_state sf_flagState(unsigned char input, sframe *t)
     return START;
 }
 
-/**
- * A State for STM
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state 
-*/
 sf_state sf_aState(unsigned char input, sframe *t)
 {
     if ((input == SET && t->u == RECEIVER) || (input == UA && t->u == SENDER)) // SET || UA
@@ -96,12 +51,6 @@ sf_state sf_aState(unsigned char input, sframe *t)
     return START;
 }
 
-/**
- * C State for STM
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state 
-*/
 sf_state sf_cState(unsigned char input, sframe *t)
 {
     if (input == (t->a ^ t->c))
@@ -114,25 +63,16 @@ sf_state sf_cState(unsigned char input, sframe *t)
     return START;
 }
 
-/**
- * BCC State for STM
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state 
-*/
 sf_state sf_bccState(unsigned char input, sframe *t)
 {
     if (input == FLAG)
+    {
+        t->flag2 = input;
         return STOP;
+    }
     return START;
 }
 
-/**
- * Gets current STM state
- * @param input read from port
- * @param t supervision frame struct
- * @return current sf_state
-*/
 sf_state sf_getState(unsigned char input, sframe *t)
 {
     switch (t->state)
@@ -156,12 +96,6 @@ sf_state sf_getState(unsigned char input, sframe *t)
 
 sframe *t;
 
-/**
- * Sends supervision message to serial port
- * @param fd serial port file descriptor
- * @param u user type
- * @return -1 if an error occurred
-*/
 int send_sup(int fd, user u)
 {
     unsigned char C = u == SENDER ? SET : UA;
@@ -178,10 +112,6 @@ int send_sup(int fd, user u)
     return 0;
 }
 
-/**
- * Alarm Signal Handler
- * @param signum signal number
-*/
 void alarmHandler(int signum)
 {
     if (signum == SIGALRM)
@@ -261,10 +191,10 @@ int llopen(int port, user u)
         }
 
         t->state = sf_getState(input, t);
-        printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t->state, t->flag, t->a, t->c, t->bcc, t->flag);
+        printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t->state, t->flag1, t->a, t->c, t->bcc, t->flag2);
     }
 
-    printf("ENDED LOOP %x%x%x%x%x\n", t->flag, t->a, t->c, t->bcc, t->flag);
+    printf("ENDED LOOP %x%x%x%x%x\n", t->flag1, t->a, t->c, t->bcc, t->flag2);
 
     if (t->u == RECEIVER)
     {
