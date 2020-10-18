@@ -32,10 +32,15 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
+  if(llopen(fd, SENDER) != fd){
+    printf("Could not open the port.\n");
+  }
 
-  llopen(fd, SENDER);
+  unsigned char a[] = {'a','b','c'};
 
+  llwrite(fd, a, 3);
 
-  close(fd);
+  llclose(fd);
+
   return 0;
 }

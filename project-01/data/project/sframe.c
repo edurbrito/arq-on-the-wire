@@ -7,17 +7,21 @@
 #include "sframe.h"
 #include "app.h"
 
-sframe *sf_init_stm(int port, user u)
+sframe *sframe_init_stm(int port, user u)
 {
     sframe *t = malloc(sizeof(sframe));
     t->state = START;
     t->u = u;
     t->port = port;
     t->num_retr = MAX_RETR;
+    if (t->seqnumber == 0)
+        t->seqnumber = !t->seqnumber;
+    else
+        t->seqnumber = 0;
     return t;
 }
 
-sf_state sf_startState(unsigned char input, sframe *t)
+fstate sframe_startState(unsigned char input, sframe *t)
 {
     if (input == FLAG)
     {
@@ -27,7 +31,7 @@ sf_state sf_startState(unsigned char input, sframe *t)
     return START;
 }
 
-sf_state sf_flagState(unsigned char input, sframe *t)
+fstate sframe_flagState(unsigned char input, sframe *t)
 {
     if (input == A1)
     {
@@ -39,9 +43,9 @@ sf_state sf_flagState(unsigned char input, sframe *t)
     return START;
 }
 
-sf_state sf_aState(unsigned char input, sframe *t)
+fstate sframe_aState(unsigned char input, sframe *t)
 {
-    if ((input == SET && t->u == RECEIVER) || (input == UA && t->u == SENDER)) // SET || UA
+    if (input == t->expected_c) // SET || UA
     {
         t->c = input;
         return C_RCV;
@@ -51,7 +55,7 @@ sf_state sf_aState(unsigned char input, sframe *t)
     return START;
 }
 
-sf_state sf_cState(unsigned char input, sframe *t)
+fstate sframe_cState(unsigned char input, sframe *t)
 {
     if (input == (t->a ^ t->c))
     {
@@ -63,7 +67,7 @@ sf_state sf_cState(unsigned char input, sframe *t)
     return START;
 }
 
-sf_state sf_bccState(unsigned char input, sframe *t)
+fstate sframe_bccState(unsigned char input, sframe *t)
 {
     if (input == FLAG)
     {
@@ -73,30 +77,28 @@ sf_state sf_bccState(unsigned char input, sframe *t)
     return START;
 }
 
-sf_state sf_getState(unsigned char input, sframe *t)
+fstate sframe_getState(unsigned char input, sframe *t)
 {
     switch (t->state)
     {
     case START:
-        return sf_startState(input, t);
+        return sframe_startState(input, t);
     case FLAG_RCV:
-        return sf_flagState(input, t);
+        return sframe_flagState(input, t);
     case A_RCV:
-        return sf_aState(input, t);
+        return sframe_aState(input, t);
     case C_RCV:
-        return sf_cState(input, t);
+        return sframe_cState(input, t);
     case BCC_OK:
-        return sf_bccState(input, t);
+        return sframe_bccState(input, t);
     case STOP:
         return STOP;
     default:
-        return sf_startState(input, t);
+        return sframe_startState(input, t);
     }
 }
 
-sframe *t;
-
-int send_sup(int fd, user u)
+int send_sframe(int fd, user u)
 {
     unsigned char C = u == SENDER ? SET : UA;
     unsigned char a[5] = {FLAG, A1, C, A1 ^ C, FLAG};
@@ -112,14 +114,53 @@ int send_sup(int fd, user u)
     return 0;
 }
 
+int send_iframe(int fd, int ns, char *buffer, int length)
+{
+    unsigned char C = CI(ns);
+    unsigned char BCC2 = 0;
+    int total = 6 + length;
+    unsigned char a[total];
+    a[0] = FLAG;
+    a[1] = A1;
+    a[2] = C;
+    a[3] = A1 ^ C;
+
+    size_t i;
+    for (i = 0; i < length; i++)
+    {
+        a[4 + i] = buffer[i];
+        BCC2 ^= buffer[i];
+    }
+
+    a[4 + i] = BCC2;
+    a[4 + i + 1] = FLAG;
+
+    int res = write(fd, a, total);
+    if (res <= 0)
+    {
+        printf("Could not write to serial port.\n");
+        perror("Error: ");
+        return -1;
+    }
+
+    printf("Sended iframe to port.\n");
+
+    t->buffer = realloc(t->buffer, total * sizeof(char));
+    strncpy(t->buffer, a, total);
+    t->length = total;
+
+    return total;
+}
+
 void alarmHandler(int signum)
 {
     if (signum == SIGALRM)
     {
         if (t->num_retr > 0 && t->state != STOP)
         {
-            if(send_sup(t->port, t->u) == -1) exit(-1);
-            alarm(3);
+            if (send_sframe(t->port, t->u) == -1)
+                exit(-1);
+            alarm(TIMEOUT);
             t->num_retr--;
         }
         else if (t->num_retr <= 0 && t->state != STOP)
@@ -130,84 +171,21 @@ void alarmHandler(int signum)
     }
 }
 
-int llopen(int port, user u)
+void alarmHandler2(int signum)
 {
-
-    struct termios oldtio, newtio;
-
-    if (tcgetattr(port, &oldtio) == -1)
-    { /* save current port settings */
-        perror("tcgetattr: ");
-        return -1;
-    }
-
-    bzero(&newtio, sizeof(newtio));
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-    newtio.c_iflag = IGNPAR;
-    newtio.c_oflag = 0;
-
-    /* set input mode (non-canonical, no echo,...) */
-    newtio.c_lflag = 0;
-
-    newtio.c_cc[VTIME] = SVMIN; /* inter-character timer unused */
-    newtio.c_cc[VMIN] = SVTIME; /* blocking read until 5 chars received */
-
-    /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
-    */
-
-    tcflush(port, TCIOFLUSH);
-
-    if (tcsetattr(port, TCSANOW, &newtio) == -1)
+    if (signum == SIGALRM)
     {
-        perror("tcsetattr: ");
-        return -1;
-    }
-
-    printf("New termios structure set\n");
-
-    signal(SIGALRM, alarmHandler);
-
-    t = sf_init_stm(port, u);
-    printf("Starting port connection...\n");
-
-    if (t->u == SENDER)
-    {
-        if(send_sup(t->port, t->u) == -1) return -1;
-        alarm(3);
-    }
-
-    while (t->state != STOP)
-    {
-        unsigned char input;
-        int res = read(t->port, &input, 1);
-
-        if (res <= 0)
+        if (t->num_retr > 0 && t->state != STOP)
         {
-            printf("Could not read from serial port.\n");
-            perror("Error: ");
-            return -1;
+            if (send_iframe(t->port, t->seqnumber, t->buffer, t->length) == -1)
+                exit(-1);
+            alarm(TIMEOUT);
+            t->num_retr--;
         }
-
-        t->state = sf_getState(input, t);
-        printf("RES %d STATE %d  |  %x%x%x%x%x\n", res, t->state, t->flag1, t->a, t->c, t->bcc, t->flag2);
+        else if (t->num_retr <= 0 && t->state != STOP)
+        {
+            printf("No answer received. Ending port connection.\n");
+            exit(-1);
+        }
     }
-
-    printf("ENDED LOOP %x%x%x%x%x\n", t->flag1, t->a, t->c, t->bcc, t->flag2);
-
-    if (t->u == RECEIVER)
-    {
-        if(send_sup(t->port, t->u) == -1) return -1;
-    }
-
-    free(t);
-
-    if (tcsetattr(port, TCSANOW, &oldtio) == -1)
-    {
-        perror("tcsetattr: ");
-        return -1;
-    }
-
-    return port;
 }

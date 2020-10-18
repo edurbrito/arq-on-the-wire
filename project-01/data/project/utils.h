@@ -18,6 +18,11 @@
 #define A2   0x01
 #define SET  0x03
 #define UA   0x07
+#define CI(n) (n << 6)
+#define RR(n) (n << 7 | 0b101)
+#define REJ(n) (n << 7 | 0b1)
+
+#define MAX_SIZE 3
 
 typedef enum // User Type
 {
@@ -25,5 +30,14 @@ typedef enum // User Type
     RECEIVER,
 } user; 
 
+typedef enum // Frame States
+{
+    START,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    STOP
+} fstate;
 
 #endif

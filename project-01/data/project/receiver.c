@@ -35,6 +35,9 @@ int main(int argc, char **argv)
 
   llopen(fd, RECEIVER);
 
+  char * buffer;
+
+  while(llread(fd, buffer) > 0);
 
   close(fd);
   return 0;
