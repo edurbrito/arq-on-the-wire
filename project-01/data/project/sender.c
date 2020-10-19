@@ -11,7 +11,7 @@
 int main(int argc, char **argv)
 {
   int fd = 0;
-  
+
   if ((argc < 2) ||
       ((strcmp("/dev/ttyS10", argv[1]) != 0) &&
        (strcmp("/dev/ttyS11", argv[1]) != 0)))
@@ -32,9 +32,8 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
-  if(llopen(fd, SENDER) != fd){
-    printf("Could not open the port.\n");
-  }
+  if (llopen(fd, SENDER) != fd)
+    return -1;
 
   for (size_t i = 0; i < 5; i++)
   {
@@ -42,7 +41,7 @@ int main(int argc, char **argv)
 
     llwrite(fd, a, strlen(a));
   }
-  
+
   llclose(fd);
 
   return 0;

@@ -159,7 +159,6 @@ int llopen(int port, user u)
         }
         else if (res == 0 && t->u == SENDER)
         {
-            printf("here\n");
             if (t->num_retr > 0)
             {
                 if (send_sframe(t->port, SET) == -1)
@@ -198,7 +197,7 @@ int llwrite(int port, char *buffer, int length)
     t = sframe_init_stm(port, SENDER, t);
 
     t->expected_c = RR(!t->seqnumber);
-    send_iframe(port, t->seqnumber, buffer, length);
+    int total = send_iframe(port, t->seqnumber, buffer, length);
 
     while (t->state != STOP)
     {
@@ -230,12 +229,14 @@ int llwrite(int port, char *buffer, int length)
         if (t->state == BCC2_REJ)
         {
             // printf("BCC2 REJECTED\n");
-            send_iframe(port, t->seqnumber, t->buffer, t->length);
+            total = send_iframe(port, t->seqnumber, t->buffer, t->length);
         }
     }
 
     printf("RR (Nr=%d, C=%x) received.\n", !t->seqnumber, t->c);
     t->seqnumber = !t->seqnumber;
+
+    return total;
 }
 
 int llread(int port, char *buffer)

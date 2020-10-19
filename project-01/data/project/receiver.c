@@ -32,14 +32,14 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
+  if (llopen(fd, RECEIVER) != fd)
+    return -1;
 
-  llopen(fd, RECEIVER);
+  char *buffer;
 
-  char * buffer;
-
-  while(llread(fd, buffer) > 0);
+  while (llread(fd, buffer) > 0);
 
   llclose(fd);
-  
+
   return 0;
 }

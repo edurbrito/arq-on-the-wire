@@ -61,7 +61,7 @@ typedef struct // Protocol Frame Struct
     unsigned char flag2;
     fstate state;
     int port;
-    volatile int num_retr;
+    unsigned int num_retr;
     unsigned int seqnumber;
     char * buffer;
     unsigned int i;
