@@ -7,22 +7,22 @@
 #include "sframe.h"
 #include "app.h"
 
-sframe *sframe_init_stm(int port, user u, sframe *t)
+pframe *sframe_init_stm(int port, user u, pframe *t)
 {
     if (t == NULL)
     {
-        t = malloc(sizeof(sframe));
+        t = malloc(sizeof(pframe));
         t->oldtio = malloc(sizeof(struct termios));
+        t->seqnumber = 0;
     }
     t->state = START;
     t->u = u;
     t->port = port;
     t->num_retr = MAX_RETR;
-    t->seqnumber = 0;
     return t;
 }
 
-fstate sframe_startState(unsigned char input, sframe *t)
+fstate sframe_startState(unsigned char input, pframe *t)
 {
     if (input == FLAG)
     {
@@ -32,7 +32,7 @@ fstate sframe_startState(unsigned char input, sframe *t)
     return START;
 }
 
-fstate sframe_flagState(unsigned char input, sframe *t)
+fstate sframe_flagState(unsigned char input, pframe *t)
 {
     if (input == A1)
     {
@@ -44,7 +44,7 @@ fstate sframe_flagState(unsigned char input, sframe *t)
     return START;
 }
 
-fstate sframe_aState(unsigned char input, sframe *t)
+fstate sframe_aState(unsigned char input, pframe *t)
 {
     if (input == t->expected_c) // SET || UA
     {
@@ -53,22 +53,24 @@ fstate sframe_aState(unsigned char input, sframe *t)
     }
     else if (input == FLAG)
         return FLAG_RCV;
+    else if (input == REJ(t->seqnumber))
+        return BCC2_REJ;
     return START;
 }
 
-fstate sframe_cState(unsigned char input, sframe *t)
+fstate sframe_cState(unsigned char input, pframe *t)
 {
     if (input == (t->a ^ t->c))
     {
         t->bcc = input;
-        return BCC_OK;
+        return BCC1_OK;
     }
     else if (input == FLAG)
         return FLAG_RCV;
     return START;
 }
 
-fstate sframe_bccState(unsigned char input, sframe *t)
+fstate sframe_bccState(unsigned char input, pframe *t)
 {
     if (input == FLAG)
     {
@@ -78,7 +80,7 @@ fstate sframe_bccState(unsigned char input, sframe *t)
     return START;
 }
 
-fstate sframe_getState(unsigned char input, sframe *t)
+fstate sframe_getState(unsigned char input, pframe *t)
 {
     switch (t->state)
     {
@@ -90,7 +92,7 @@ fstate sframe_getState(unsigned char input, sframe *t)
         return sframe_aState(input, t);
     case C_RCV:
         return sframe_cState(input, t);
-    case BCC_OK:
+    case BCC1_OK:
         return sframe_bccState(input, t);
     case STOP:
         return STOP;

@@ -39,6 +39,7 @@ int main(int argc, char **argv)
 
   while(llread(fd, buffer) > 0);
 
-  close(fd);
+  llclose(fd);
+  
   return 0;
 }

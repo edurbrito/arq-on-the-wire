@@ -8,11 +8,10 @@
  * Inits the Supervision State Machine
  * @param port port file descriptor
  * @param u user Type
- * @param t sframe struct to be initialized
- * @return sframe pointer to struct
+ * @param t pframe struct to be initialized
+ * @return pframe pointer to struct
 */
-sframe *sframe_init_stm(int port, user u, sframe * t);
-
+pframe *sframe_init_stm(int port, user u, pframe *t);
 
 /**
  * Start State for STM
@@ -20,8 +19,7 @@ sframe *sframe_init_stm(int port, user u, sframe * t);
  * @param t supervision frame struct
  * @return current fstate 
 */
-fstate sframe_startState(unsigned char input, sframe *t);
-
+fstate sframe_startState(unsigned char input, pframe *t);
 
 /**
  * Flag State for STM
@@ -29,7 +27,7 @@ fstate sframe_startState(unsigned char input, sframe *t);
  * @param t supervision frame struct
  * @return current fstate 
 */
-fstate sframe_flagState(unsigned char input, sframe *t);
+fstate sframe_flagState(unsigned char input, pframe *t);
 
 /**
  * A State for STM
@@ -37,7 +35,7 @@ fstate sframe_flagState(unsigned char input, sframe *t);
  * @param t supervision frame struct
  * @return current fstate 
 */
-fstate sframe_aState(unsigned char input, sframe *t);
+fstate sframe_aState(unsigned char input, pframe *t);
 
 /**
  * C State for STM
@@ -45,7 +43,7 @@ fstate sframe_aState(unsigned char input, sframe *t);
  * @param t supervision frame struct
  * @return current fstate 
 */
-fstate sframe_cState(unsigned char input, sframe *t);
+fstate sframe_cState(unsigned char input, pframe *t);
 
 /**
  * BCC State for STM
@@ -53,7 +51,7 @@ fstate sframe_cState(unsigned char input, sframe *t);
  * @param t supervision frame struct
  * @return current fstate 
 */
-fstate sframe_bccState(unsigned char input, sframe *t);
+fstate sframe_bccState(unsigned char input, pframe *t);
 
 /**
  * Gets current STM state
@@ -61,6 +59,6 @@ fstate sframe_bccState(unsigned char input, sframe *t);
  * @param t supervision frame struct
  * @return current fstate
 */
-fstate sframe_getState(unsigned char input, sframe *t);
+fstate sframe_getState(unsigned char input, pframe *t);
 
 #endif

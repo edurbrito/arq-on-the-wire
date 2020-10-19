@@ -7,28 +7,37 @@
 #include "iframe.h"
 #include "app.h"
 
-iframe * iframe_init_stm(int port, user u, iframe * t)
+pframe *iframe_init_stm(int port, user u, pframe *t)
 {
-    if(t == NULL) t = malloc(sizeof(iframe));
+    if (t == NULL)
+    {
+        t = malloc(sizeof(pframe));
+        t->seqnumber = 0;
+    }
+    if (t->buffer != NULL)
+        free(t->buffer);
+    t->buffer = malloc((MAX_SIZE + 1) * sizeof(char));
+    t->i = 0;
+
     t->state = START;
     t->u = u;
     t->port = port;
     t->num_retr = MAX_RETR;
-    t->seqnumber = 0;
     return t;
 }
 
-fstate iframe_startState(unsigned char input, iframe *t)
+fstate iframe_startState(unsigned char input, pframe *t)
 {
     if (input == FLAG)
     {
+        t->i = 0;
         t->flag1 = input;
         return FLAG_RCV;
     }
     return START;
 }
 
-fstate iframe_flagState(unsigned char input, iframe *t)
+fstate iframe_flagState(unsigned char input, pframe *t)
 {
     if (input == A1)
     {
@@ -40,7 +49,7 @@ fstate iframe_flagState(unsigned char input, iframe *t)
     return START;
 }
 
-fstate iframe_aState(unsigned char input, iframe *t)
+fstate iframe_aState(unsigned char input, pframe *t)
 {
     if (input == t->expected_c)
     {
@@ -52,29 +61,62 @@ fstate iframe_aState(unsigned char input, iframe *t)
     return START;
 }
 
-fstate iframe_cState(unsigned char input, iframe *t)
+fstate iframe_cState(unsigned char input, pframe *t)
 {
     if (input == (t->a ^ t->c))
     {
         t->bcc = input;
-        return BCC_OK;
+        return BCC1_OK;
     }
     else if (input == FLAG)
         return FLAG_RCV;
     return START;
 }
 
-fstate iframe_bccState(unsigned char input, iframe *t)
+fstate iframe_dataState(unsigned char input, pframe *t)
 {
-    if (input == FLAG)
+    if (input == ESC)
     {
+        return ESC_RCV;
+    }
+    else if (input == FLAG)
+    {
+        t->bcc2 = t->buffer[t->i - 1];
         t->flag2 = input;
+
+        unsigned char bcc2 = 0;
+        for (size_t j = 0; j < t->i - 1; j++)
+        {
+            bcc2 ^= t->buffer[j];
+        }
+
+        if (bcc2 != t->bcc2)
+        {
+            return BCC2_REJ;
+        }
+
         return STOP;
     }
-    return START;
+    t->buffer[t->i] = input;
+    t->i++;
+    return DATA_RCV;
 }
 
-fstate iframe_getState(unsigned char input, iframe *t)
+fstate iframe_escState(unsigned char input, pframe *t)
+{
+    if (input == EFLAG)
+    {
+        t->buffer[t->i] = FLAG;
+    }
+    else if (input == EESC)
+    {
+        t->buffer[t->i] = ESC;
+    }
+    t->i++;
+    return DATA_RCV;
+}
+
+fstate iframe_getState(unsigned char input, pframe *t)
 {
     switch (t->state)
     {
@@ -86,8 +128,12 @@ fstate iframe_getState(unsigned char input, iframe *t)
         return iframe_aState(input, t);
     case C_RCV:
         return iframe_cState(input, t);
-    case BCC_OK:
-        return iframe_bccState(input, t);
+    case BCC1_OK:
+        return iframe_dataState(input, t);
+    case DATA_RCV:
+        return iframe_dataState(input, t);
+    case ESC_RCV:
+        return iframe_escState(input, t);
     case STOP:
         return STOP;
     default:

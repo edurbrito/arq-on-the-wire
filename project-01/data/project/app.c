@@ -8,7 +8,7 @@
 #include "iframe.h"
 #include "app.h"
 
-sframe *t;
+pframe *t;
 
 int send_sframe(int fd, unsigned char C)
 {
@@ -20,7 +20,7 @@ int send_sframe(int fd, unsigned char C)
         perror("Error: ");
         return -1;
     }
-    printf("Sended message to port.\n");
+    printf("Sended sframe (C=%x) to port.\n", C);
 
     return 0;
 }
@@ -29,34 +29,63 @@ int send_iframe(int fd, int ns, char *buffer, int length)
 {
     unsigned char C = CI(ns);
     unsigned char BCC2 = 0;
-    int total = 6 + length;
-    unsigned char a[total];
-    a[0] = FLAG;
-    a[1] = A1;
-    a[2] = C;
-    a[3] = A1 ^ C;
+    unsigned int total = 0;
 
-    size_t i;
-    char aux[length];
-    for (i = 0; i < length; i++)
-    {
-        a[4 + i] = buffer[i];
-        BCC2 ^= buffer[i];
-        aux[i] = buffer[i];
-    }
-
-    a[4 + i] = BCC2;
-    a[4 + i + 1] = FLAG;
-
-    int res = write(fd, a, total);
+    unsigned char a[4] = {FLAG, A1, C, A1 ^ C};
+    int res = write(fd, a, 4);
     if (res <= 0)
     {
         printf("Could not write to serial port.\n");
         perror("Error: ");
         return -1;
     }
+    total += res;
 
-    printf("Sended iframe to port.\n");
+    size_t i;
+    char aux[length];
+    for (i = 0; i < length; i++)
+    {
+        BCC2 ^= buffer[i];
+        aux[i] = buffer[i];
+
+        if (buffer[i] == FLAG)
+        {
+            a[0] = ESC;
+            a[1] = EFLAG;
+            res = write(fd, a, 2);
+        }
+        else if (buffer[i] == ESC)
+        {
+            a[0] = ESC;
+            a[1] = EESC;
+            res = write(fd, a, 2);
+        }
+        else
+        {
+            res = write(fd, &buffer[i], 1);
+        }
+
+        if (res <= 0)
+        {
+            printf("Could not write to serial port.\n");
+            perror("Error: ");
+            return -1;
+        }
+        total += res;
+    }
+
+    a[0] = BCC2;
+    a[1] = FLAG;
+    res = write(fd, a, 2);
+    if (res <= 0)
+    {
+        printf("Could not write to serial port.\n");
+        perror("Error: ");
+        return -1;
+    }
+    total += res;
+
+    printf("Sended iframe (Ns=%d, C=%x) to port.\n", t->seqnumber, C);
 
     if (t->buffer != NULL)
         free(t->buffer);
@@ -196,11 +225,9 @@ int llwrite(int port, char *buffer, int length)
 
     signal(SIGALRM, alarmHandler2);
 
-    t->state = START;
     t->expected_c = RR(!t->seqnumber);
     send_iframe(port, t->seqnumber, buffer, length);
     alarm(TIMEOUT);
-    int i = 0;
 
     while (t->state != STOP)
     {
@@ -214,31 +241,31 @@ int llwrite(int port, char *buffer, int length)
             return -1;
         }
 
-        printf("CHAR AT %d is %x\n", i, input);
-        i++;
         t->state = sframe_getState(input, t);
+        if (t->state == BCC2_REJ)
+        {
+            // printf("BCC2 REJECTED\n");
+            send_iframe(port, t->seqnumber, t->buffer, t->length);
+            alarm(TIMEOUT);
+        }
     }
 
-    printf("RR with sequence number %d received.\n", t->seqnumber);
+    printf("RR (Nr=%d, C=%x) received.\n", !t->seqnumber, t->c);
     t->seqnumber = !t->seqnumber;
     alarm(0);
 }
 
 int llread(int port, char *buffer)
 {
-    iframe *t;
-
     t = iframe_init_stm(port, RECEIVER, t);
+
     t->expected_c = CI(t->seqnumber);
-    int i = 0;
 
     printf("Reading from port.\n");
 
     while (t->state != STOP)
     {
         unsigned char input;
-        // printf("PORT AT %d I %d\n", t->port,i);
-        // fflush(stdout);
         int res = read(t->port, &input, 1);
 
         if (res <= 0)
@@ -248,22 +275,23 @@ int llread(int port, char *buffer)
             return -1;
         }
 
-        printf("CHAR AT %d is %x\n", i, input);
+        printf("STATE %d with INPUT %x\n", t->state, input);
+        t->state = iframe_getState(input, t);
 
-        if (input == FLAG)
+        if (t->state == BCC2_REJ)
         {
-            if (i == 1)
-            {
-                i = 0;
-                t->seqnumber = !t->seqnumber;
-                if (send_sframe(t->port, RR(t->seqnumber)) == -1)
-                    return -1;
-            }
-            i++;
+            printf("BCC2 REJECTED\n");
+            if (send_sframe(t->port, REJ(t->seqnumber)) == -1)
+                return -1;
         }
-
-        // t->state = iframe_getState(input, t);
     }
+
+    printf("BCC2 RECEIVED SUCCESSFULLY\n");
+    t->seqnumber = !t->seqnumber;
+    if (send_sframe(t->port, RR(t->seqnumber)) == -1)
+        return -1;
+
+    // TODO: SAVE DATA TO BUFFER
 
     return 9;
 }
@@ -281,11 +309,11 @@ int llclose(int port)
 
     printf("Ending transmittion.\n");
 
-    // if (close(port) != 0)
-    // {
-    //     perror("close: ");
-    //     return -1;
-    // }
+    if (close(port) != 0)
+    {
+        perror("close: ");
+        return -1;
+    }
 
     return 0;
 }

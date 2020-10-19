@@ -24,8 +24,11 @@
 #define CI(n) (n << 6)
 #define RR(n) (n << 7 | 0b101)
 #define REJ(n) (n << 7 | 0b1)
+#define ESC   0x7d
+#define EFLAG 0x5e
+#define EESC  0x5d
 
-#define MAX_SIZE 1
+#define MAX_SIZE 50
 
 typedef enum // User Type
 {
@@ -39,11 +42,14 @@ typedef enum // Frame States
     FLAG_RCV,
     A_RCV,
     C_RCV,
-    BCC_OK,
+    BCC1_OK,
+    DATA_RCV,
+    ESC_RCV,
+    BCC2_REJ,
     STOP
 } fstate;
 
-typedef struct // Supervision Frame Struct
+typedef struct // Protocol Frame Struct
 {
     user u;
     unsigned char flag1;
@@ -51,31 +57,16 @@ typedef struct // Supervision Frame Struct
     unsigned char c;
     unsigned char expected_c;
     unsigned char bcc;
+    unsigned char bcc2;
     unsigned char flag2;
     fstate state;
     int port;
     volatile int num_retr;
     unsigned int seqnumber;
     char * buffer;
+    unsigned int i;
     unsigned int length;
     struct termios * oldtio;
-} sframe;
-
-typedef struct // Information Frame Struct
-{
-    user u;
-    unsigned char flag1;
-    unsigned char a;
-    unsigned char c;
-    unsigned char expected_c;
-    unsigned char bcc;
-    char dn[MAX_SIZE];
-    unsigned char bcc2;
-    unsigned char flag2;
-    fstate state;
-    int port;
-    unsigned int seqnumber;
-    volatile int num_retr;
-} iframe;
+} pframe;
 
 #endif

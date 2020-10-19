@@ -36,10 +36,13 @@ int main(int argc, char **argv)
     printf("Could not open the port.\n");
   }
 
-  unsigned char a[] = {'a','b','c','d','e','f'};
+  for (size_t i = 0; i < 1; i++)
+  {
+    unsigned char a[] = {'a', FLAG, ESC, ESC, ESC, ESC, ESC, ESC, FLAG};
 
-  llwrite(fd, a, 6);
-
+    llwrite(fd, a, strlen(a));
+  }
+  
   llclose(fd);
 
   return 0;
