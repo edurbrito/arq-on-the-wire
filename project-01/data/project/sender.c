@@ -36,9 +36,9 @@ int main(int argc, char **argv)
     printf("Could not open the port.\n");
   }
 
-  unsigned char a[] = {'a','b','c'};
+  unsigned char a[] = {'a','b','c','d','e','f'};
 
-  llwrite(fd, a, 3);
+  llwrite(fd, a, 6);
 
   llclose(fd);
 

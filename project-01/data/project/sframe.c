@@ -7,17 +7,18 @@
 #include "sframe.h"
 #include "app.h"
 
-sframe *sframe_init_stm(int port, user u)
+sframe *sframe_init_stm(int port, user u, sframe *t)
 {
-    sframe *t = malloc(sizeof(sframe));
+    if (t == NULL)
+    {
+        t = malloc(sizeof(sframe));
+        t->oldtio = malloc(sizeof(struct termios));
+    }
     t->state = START;
     t->u = u;
     t->port = port;
     t->num_retr = MAX_RETR;
-    if (t->seqnumber == 0)
-        t->seqnumber = !t->seqnumber;
-    else
-        t->seqnumber = 0;
+    t->seqnumber = 0;
     return t;
 }
 
@@ -95,97 +96,5 @@ fstate sframe_getState(unsigned char input, sframe *t)
         return STOP;
     default:
         return sframe_startState(input, t);
-    }
-}
-
-int send_sframe(int fd, user u)
-{
-    unsigned char C = u == SENDER ? SET : UA;
-    unsigned char a[5] = {FLAG, A1, C, A1 ^ C, FLAG};
-    int res = write(fd, a, 5);
-    if (res <= 0)
-    {
-        printf("Could not write to serial port.\n");
-        perror("Error: ");
-        return -1;
-    }
-    printf("Sended message to port.\n");
-
-    return 0;
-}
-
-int send_iframe(int fd, int ns, char *buffer, int length)
-{
-    unsigned char C = CI(ns);
-    unsigned char BCC2 = 0;
-    int total = 6 + length;
-    unsigned char a[total];
-    a[0] = FLAG;
-    a[1] = A1;
-    a[2] = C;
-    a[3] = A1 ^ C;
-
-    size_t i;
-    for (i = 0; i < length; i++)
-    {
-        a[4 + i] = buffer[i];
-        BCC2 ^= buffer[i];
-    }
-
-    a[4 + i] = BCC2;
-    a[4 + i + 1] = FLAG;
-
-    int res = write(fd, a, total);
-    if (res <= 0)
-    {
-        printf("Could not write to serial port.\n");
-        perror("Error: ");
-        return -1;
-    }
-
-    printf("Sended iframe to port.\n");
-
-    t->buffer = realloc(t->buffer, total * sizeof(char));
-    strncpy(t->buffer, a, total);
-    t->length = total;
-
-    return total;
-}
-
-void alarmHandler(int signum)
-{
-    if (signum == SIGALRM)
-    {
-        if (t->num_retr > 0 && t->state != STOP)
-        {
-            if (send_sframe(t->port, t->u) == -1)
-                exit(-1);
-            alarm(TIMEOUT);
-            t->num_retr--;
-        }
-        else if (t->num_retr <= 0 && t->state != STOP)
-        {
-            printf("No answer received. Ending port connection.\n");
-            exit(-1);
-        }
-    }
-}
-
-void alarmHandler2(int signum)
-{
-    if (signum == SIGALRM)
-    {
-        if (t->num_retr > 0 && t->state != STOP)
-        {
-            if (send_iframe(t->port, t->seqnumber, t->buffer, t->length) == -1)
-                exit(-1);
-            alarm(TIMEOUT);
-            t->num_retr--;
-        }
-        else if (t->num_retr <= 0 && t->state != STOP)
-        {
-            printf("No answer received. Ending port connection.\n");
-            exit(-1);
-        }
     }
 }

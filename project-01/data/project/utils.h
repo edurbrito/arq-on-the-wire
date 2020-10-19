@@ -1,4 +1,7 @@
 
+
+#include <termios.h>
+
 #ifndef UTILS_H
 #define UTILS_H
 
@@ -22,7 +25,7 @@
 #define RR(n) (n << 7 | 0b101)
 #define REJ(n) (n << 7 | 0b1)
 
-#define MAX_SIZE 3
+#define MAX_SIZE 1
 
 typedef enum // User Type
 {
@@ -39,5 +42,40 @@ typedef enum // Frame States
     BCC_OK,
     STOP
 } fstate;
+
+typedef struct // Supervision Frame Struct
+{
+    user u;
+    unsigned char flag1;
+    unsigned char a;
+    unsigned char c;
+    unsigned char expected_c;
+    unsigned char bcc;
+    unsigned char flag2;
+    fstate state;
+    int port;
+    volatile int num_retr;
+    unsigned int seqnumber;
+    char * buffer;
+    unsigned int length;
+    struct termios * oldtio;
+} sframe;
+
+typedef struct // Information Frame Struct
+{
+    user u;
+    unsigned char flag1;
+    unsigned char a;
+    unsigned char c;
+    unsigned char expected_c;
+    unsigned char bcc;
+    char dn[MAX_SIZE];
+    unsigned char bcc2;
+    unsigned char flag2;
+    fstate state;
+    int port;
+    unsigned int seqnumber;
+    volatile int num_retr;
+} iframe;
 
 #endif

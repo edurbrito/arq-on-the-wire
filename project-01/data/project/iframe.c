@@ -7,17 +7,14 @@
 #include "iframe.h"
 #include "app.h"
 
-iframe *iframe_init_stm(int port, user u)
+iframe * iframe_init_stm(int port, user u, iframe * t)
 {
-    iframe *t = malloc(sizeof(iframe));
+    if(t == NULL) t = malloc(sizeof(iframe));
     t->state = START;
     t->u = u;
     t->port = port;
     t->num_retr = MAX_RETR;
-    if (t->seqnumber == 0)
-        t->seqnumber = !t->seqnumber;
-    else
-        t->seqnumber = 0;
+    t->seqnumber = 0;
     return t;
 }
 
@@ -96,19 +93,4 @@ fstate iframe_getState(unsigned char input, iframe *t)
     default:
         return iframe_startState(input, t);
     }
-}
-
-int send_rr(int fd, unsigned char C)
-{
-    unsigned char a[5] = {FLAG, A1, C, A1 ^ C, FLAG};
-    int res = write(fd, a, 5);
-    if (res <= 0)
-    {
-        printf("Could not write to serial port.\n");
-        perror("Error: ");
-        return -1;
-    }
-    printf("Sended message to port.\n");
-
-    return 0;
 }
