@@ -96,45 +96,6 @@ int send_iframe(int fd, int ns, char *buffer, int length)
     return total;
 }
 
-void alarmHandler(int signum)
-{
-    if (signum == SIGALRM)
-    {
-        if (t->num_retr > 0 && t->state != STOP)
-        {
-            unsigned char C = t->u == SENDER ? SET : UA;
-            if (send_sframe(t->port, C) == -1)
-                exit(-1);
-            alarm(TIMEOUT);
-            t->num_retr--;
-        }
-        else if (t->num_retr <= 0 && t->state != STOP)
-        {
-            printf("No answer received. Ending port connection.\n");
-            exit(-1);
-        }
-    }
-}
-
-void alarmHandler2(int signum)
-{
-    if (signum == SIGALRM)
-    {
-        if (t->num_retr > 0 && t->state != STOP)
-        {
-            if (send_iframe(t->port, t->seqnumber, t->buffer, t->length) == -1)
-                exit(-1);
-            alarm(TIMEOUT);
-            t->num_retr--;
-        }
-        else if (t->num_retr <= 0 && t->state != STOP)
-        {
-            printf("No answer received. Ending port connection.\n");
-            exit(-1);
-        }
-    }
-}
-
 int llopen(int port, user u)
 {
 
@@ -155,8 +116,8 @@ int llopen(int port, user u)
     /* set input mode (non-canonical, no echo,...) */
     newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME] = SVMIN; /* inter-character timer unused */
-    newtio.c_cc[VMIN] = SVTIME; /* blocking read until 5 chars received */
+    newtio.c_cc[VTIME] = SVTIME; /* inter-character timer unused */
+    newtio.c_cc[VMIN] = SVMIN; /* blocking read until 5 chars received */
 
     /* 
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
@@ -178,11 +139,9 @@ int llopen(int port, user u)
     if (t->u == SENDER)
     {
         t->expected_c = UA;
-        signal(SIGALRM, alarmHandler);
         unsigned char C = t->u == SENDER ? SET : UA;
         if (send_sframe(t->port, C) == -1)
             return -1;
-        alarm(TIMEOUT);
     }
     else if (t->u == RECEIVER)
         t->expected_c = SET;
@@ -192,11 +151,26 @@ int llopen(int port, user u)
         unsigned char input;
         int res = read(t->port, &input, 1);
 
-        if (res <= 0)
+        if (res < 0)
         {
             printf("Could not read from serial port.\n");
             perror("Error: ");
             return -1;
+        }
+        else if (res == 0 && t->u == SENDER)
+        {
+            printf("here\n");
+            if (t->num_retr > 0)
+            {
+                if (send_sframe(t->port, SET) == -1)
+                    return -1;
+                t->num_retr--;
+            }
+            else if (t->num_retr <= 0)
+            {
+                printf("No answer received. Ending port connection.\n");
+                return -1;
+            }
         }
 
         t->state = sframe_getState(input, t);
@@ -223,22 +197,33 @@ int llwrite(int port, char *buffer, int length)
 
     t = sframe_init_stm(port, SENDER, t);
 
-    signal(SIGALRM, alarmHandler2);
-
     t->expected_c = RR(!t->seqnumber);
     send_iframe(port, t->seqnumber, buffer, length);
-    alarm(TIMEOUT);
 
     while (t->state != STOP)
     {
         unsigned char input;
         int res = read(t->port, &input, 1);
 
-        if (res <= 0)
+        if (res < 0)
         {
             printf("Could not read from serial port.\n");
             perror("Error: ");
             return -1;
+        }
+        else if (res == 0 && t->u == SENDER)
+        {
+            if (t->num_retr > 0)
+            {
+                if (send_iframe(t->port, t->seqnumber, t->buffer, t->length) == -1)
+                    return -1;
+                t->num_retr--;
+            }
+            else if (t->num_retr <= 0)
+            {
+                printf("No answer received. Ending port connection.\n");
+                return -1;
+            }
         }
 
         t->state = sframe_getState(input, t);
@@ -246,13 +231,11 @@ int llwrite(int port, char *buffer, int length)
         {
             // printf("BCC2 REJECTED\n");
             send_iframe(port, t->seqnumber, t->buffer, t->length);
-            alarm(TIMEOUT);
         }
     }
 
     printf("RR (Nr=%d, C=%x) received.\n", !t->seqnumber, t->c);
     t->seqnumber = !t->seqnumber;
-    alarm(0);
 }
 
 int llread(int port, char *buffer)
@@ -268,7 +251,7 @@ int llread(int port, char *buffer)
         unsigned char input;
         int res = read(t->port, &input, 1);
 
-        if (res <= 0)
+        if (res < 0)
         {
             printf("Could not read from serial port.\n");
             perror("Error: ");

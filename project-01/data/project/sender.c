@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     printf("Could not open the port.\n");
   }
 
-  for (size_t i = 0; i < 1; i++)
+  for (size_t i = 0; i < 5; i++)
   {
     unsigned char a[] = {'a', FLAG, ESC, ESC, ESC, ESC, ESC, ESC, FLAG};
 

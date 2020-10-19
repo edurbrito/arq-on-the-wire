@@ -10,7 +10,7 @@
 #define FALSE 0
 #define TRUE 1
 
-#define SVTIME 5
+#define SVTIME 30
 #define SVMIN 0
 
 #define MAX_RETR 3
