@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <termios.h>
 #include <string.h>
 #include "sframe.h"
@@ -10,9 +11,9 @@
 
 pframe *t;
 
-int send_sframe(int fd, unsigned char C)
+int send_sframe(int fd, unsigned char A, unsigned char C)
 {
-    unsigned char a[5] = {FLAG, A1, C, A1 ^ C, FLAG};
+    unsigned char a[5] = {FLAG, A, C, A ^ C, FLAG};
     int res = write(fd, a, 5);
     if (res <= 0)
     {
@@ -22,14 +23,13 @@ int send_sframe(int fd, unsigned char C)
     }
     printf("Sended sframe (C=%x) to port.\n", C);
 
-    return 0;
+    return res;
 }
 
-int send_iframe(int fd, int ns, char *buffer, int length)
+int send_iframe(int fd, int ns, unsigned char *buffer, int length)
 {
     unsigned char C = CI(ns);
     unsigned char BCC2 = 0;
-    unsigned int total = 0;
 
     unsigned char a[4] = {FLAG, A1, C, A1 ^ C};
     int res = write(fd, a, 4);
@@ -39,10 +39,9 @@ int send_iframe(int fd, int ns, char *buffer, int length)
         perror("Error: ");
         return -1;
     }
-    total += res;
 
     size_t i;
-    char aux[length];
+    unsigned char aux[length];
     for (i = 0; i < length; i++)
     {
         BCC2 ^= buffer[i];
@@ -71,7 +70,6 @@ int send_iframe(int fd, int ns, char *buffer, int length)
             perror("Error: ");
             return -1;
         }
-        total += res;
     }
 
     a[0] = BCC2;
@@ -83,26 +81,34 @@ int send_iframe(int fd, int ns, char *buffer, int length)
         perror("Error: ");
         return -1;
     }
-    total += res;
 
     printf("Sended iframe (Ns=%d, C=%x) to port.\n", t->seqnumber, C);
 
     if (t->buffer != NULL)
         free(t->buffer);
-    t->buffer = malloc(length * sizeof(char));
+    t->buffer = malloc(length * sizeof(unsigned char));
     strncpy(t->buffer, aux, length);
     t->length = length;
 
-    return total;
+    return length;
 }
 
 int llopen(int port, user u)
 {
+    char portname[12];
+    sprintf(portname, "/dev/ttyS%d", port);
 
-    t = sframe_init_stm(port, u, t);
+    int fd = open(portname, O_RDWR | O_NOCTTY);
+    if (fd < 0)
+    {
+        perror(portname);
+        return -1;
+    }
+
+    t = sframe_init_stm(fd, u, t);
     struct termios newtio;
 
-    if (tcgetattr(port, t->oldtio) == -1)
+    if (tcgetattr(fd, t->oldtio) == -1)
     { /* save current port settings */
         perror("tcgetattr: ");
         return -1;
@@ -117,16 +123,11 @@ int llopen(int port, user u)
     newtio.c_lflag = 0;
 
     newtio.c_cc[VTIME] = SVTIME; /* inter-character timer unused */
-    newtio.c_cc[VMIN] = SVMIN; /* blocking read until 5 chars received */
+    newtio.c_cc[VMIN] = SVMIN;   /* blocking read until 5 chars received */
 
-    /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
-    */
+    tcflush(fd, TCIOFLUSH);
 
-    tcflush(port, TCIOFLUSH);
-
-    if (tcsetattr(port, TCSANOW, &newtio) == -1)
+    if (tcsetattr(fd, TCSANOW, &newtio) == -1)
     {
         perror("tcsetattr: ");
         return -1;
@@ -136,11 +137,11 @@ int llopen(int port, user u)
 
     printf("Starting port connection...\n");
 
+    t->expected_a = A1;
     if (t->u == SENDER)
     {
         t->expected_c = UA;
-        unsigned char C = t->u == SENDER ? SET : UA;
-        if (send_sframe(t->port, C) == -1)
+        if (send_sframe(t->port, A1, SET) == -1)
             return -1;
     }
     else if (t->u == RECEIVER)
@@ -161,7 +162,7 @@ int llopen(int port, user u)
         {
             if (t->num_retr > 0)
             {
-                if (send_sframe(t->port, SET) == -1)
+                if (send_sframe(t->port, A1, SET) == -1)
                     return -1;
                 t->num_retr--;
             }
@@ -178,24 +179,23 @@ int llopen(int port, user u)
     if (t->u == RECEIVER)
     {
         printf("Frame received. Connection accepted.\n");
-        unsigned char C = t->u == SENDER ? SET : UA;
-        if (send_sframe(t->port, C) == -1)
+        if (send_sframe(t->port, A1, UA) == -1)
             return -1;
     }
     else
     {
         printf("Answer received. Connection established.\n");
-        alarm(0);
     }
 
-    return port;
+    return fd;
 }
 
-int llwrite(int port, char *buffer, int length)
+int llwrite(int port, unsigned char *buffer, int length)
 {
 
     t = sframe_init_stm(port, SENDER, t);
 
+    t->expected_a = A1;
     t->expected_c = RR(!t->seqnumber);
     int total = send_iframe(port, t->seqnumber, buffer, length);
 
@@ -239,10 +239,11 @@ int llwrite(int port, char *buffer, int length)
     return total;
 }
 
-int llread(int port, char *buffer)
+int llread(int port, unsigned char *buffer)
 {
     t = iframe_init_stm(port, RECEIVER, t);
 
+    t->expected_a = A1;
     t->expected_c = CI(t->seqnumber);
 
     printf("Reading from port.\n");
@@ -265,23 +266,111 @@ int llread(int port, char *buffer)
         if (t->state == BCC2_REJ)
         {
             printf("BCC2 REJECTED\n");
-            if (send_sframe(t->port, REJ(t->seqnumber)) == -1)
+            if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
                 return -1;
         }
     }
 
     printf("BCC2 RECEIVED SUCCESSFULLY\n");
     t->seqnumber = !t->seqnumber;
-    if (send_sframe(t->port, RR(t->seqnumber)) == -1)
+    if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
         return -1;
 
-    // TODO: SAVE DATA TO BUFFER
-
-    return 9;
+    printf("INSIDE LLREAD %p \n", buffer);
+    
+    return t->i;
 }
 
 int llclose(int port)
 {
+
+    printf("Closing port connection...\n");
+    t->expected_c = DISC;
+
+    if (t->u == SENDER)
+    {
+        if (send_sframe(t->port, A1, DISC) == -1)
+            return -1;
+
+        t->expected_a = A2;
+    }
+
+    while (t->state != STOP)
+    {
+        unsigned char input;
+        int res = read(t->port, &input, 1);
+
+        if (res < 0)
+        {
+            printf("Could not read from serial port.\n");
+            perror("Error: ");
+            return -1;
+        }
+        else if (res == 0)
+        {
+            if (t->num_retr > 0)
+            {
+                unsigned char A = t->u == SENDER ? A1 : A2;
+                if (send_sframe(t->port, A, DISC) == -1)
+                    return -1;
+                t->num_retr--;
+            }
+            else if (t->num_retr <= 0)
+            {
+                printf("No answer received. Ending port connection.\n");
+                return -1;
+            }
+        }
+
+        t->state = sframe_getState(input, t);
+    }
+
+    if (t->u == SENDER)
+    {
+        printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n");
+        if (send_sframe(t->port, A2, UA) == -1)
+            return -1;
+    }
+    else
+    {
+        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
+        t->expected_a = A2;
+
+        if (send_sframe(t->port, A2, DISC) == -1)
+            return -1;
+
+        t->expected_c = UA;
+        while (t->state != STOP)
+        {
+            unsigned char input;
+            int res = read(t->port, &input, 1);
+
+            if (res < 0)
+            {
+                printf("Could not read from serial port.\n");
+                perror("Error: ");
+                return -1;
+            }
+            else if (res == 0)
+            {
+                if (t->num_retr > 0)
+                {
+                    if (send_sframe(t->port, A2, DISC) == -1)
+                        return -1;
+                    t->num_retr--;
+                }
+                else if (t->num_retr <= 0)
+                {
+                    printf("No answer received. Ending port connection.\n");
+                    return -1;
+                }
+            }
+
+            t->state = sframe_getState(input, t);
+        }
+        printf("Frame UA received from SENDER. Closing port connection.\n");
+    }
+
     if (tcsetattr(port, TCSANOW, t->oldtio) != 0)
     {
         perror("tcsetattr: ");
@@ -299,5 +388,5 @@ int llclose(int port)
         return -1;
     }
 
-    return 0;
+    return 1;
 }

@@ -12,9 +12,9 @@
 */
 int llopen(int port, user u);
 
-int llwrite(int port, char * buffer, int length);
+int llwrite(int port, unsigned char * buffer, int length);
 
-int llread(int port, char *buffer);
+int llread(int port, unsigned char *buffer);
 
 /**
  * Closes the transmission at port

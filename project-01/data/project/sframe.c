@@ -34,7 +34,7 @@ fstate sframe_startState(unsigned char input, pframe *t)
 
 fstate sframe_flagState(unsigned char input, pframe *t)
 {
-    if (input == A1)
+    if (input == t->expected_a)
     {
         t->a = input;
         return A_RCV;
@@ -46,7 +46,7 @@ fstate sframe_flagState(unsigned char input, pframe *t)
 
 fstate sframe_aState(unsigned char input, pframe *t)
 {
-    if (input == t->expected_c) // SET || UA
+    if (input == t->expected_c)
     {
         t->c = input;
         return C_RCV;

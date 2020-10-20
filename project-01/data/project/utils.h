@@ -21,6 +21,7 @@
 #define A2   0x01
 #define SET  0x03
 #define UA   0x07
+#define DISC 0x0B
 #define CI(n) (n << 6)
 #define RR(n) (n << 7 | 0b101)
 #define REJ(n) (n << 7 | 0b1)
@@ -54,6 +55,7 @@ typedef struct // Protocol Frame Struct
     user u;
     unsigned char flag1;
     unsigned char a;
+    unsigned char expected_a;
     unsigned char c;
     unsigned char expected_c;
     unsigned char bcc;
@@ -63,7 +65,7 @@ typedef struct // Protocol Frame Struct
     int port;
     unsigned int num_retr;
     unsigned int seqnumber;
-    char * buffer;
+    unsigned char * buffer;
     unsigned int i;
     unsigned int length;
     struct termios * oldtio;

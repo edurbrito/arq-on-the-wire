@@ -10,36 +10,38 @@
 
 int main(int argc, char **argv)
 {
-  int fd = 0;
 
-  if ((argc < 2) ||
-      ((strcmp("/dev/ttyS10", argv[1]) != 0) &&
-       (strcmp("/dev/ttyS11", argv[1]) != 0)))
+  if ((argc < 3) ||
+      ((strcmp("10", argv[1]) != 0) &&
+       (strcmp("11", argv[1]) != 0)))
   {
-    printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+    printf("Usage:\t./a.o serialport filename \n\tex: ./a.o 10 /images/p.gif\n");
     exit(1);
   }
 
-  /*
-    Open serial port device for reading and writing and not as controlling tty
-    because we don't want to get killed if linenoise sends CTRL-C.
-  */
+  int fd = 0;
 
-  fd = open(argv[1], O_RDWR | O_NOCTTY);
-  if (fd < 0)
-  {
-    perror(argv[1]);
-    exit(-1);
-  }
-
-  if (llopen(fd, RECEIVER) != fd)
+  if ((fd = llopen(atoi(argv[1]), RECEIVER)) <= 0)
     return -1;
 
-  char *buffer;
+  unsigned char *buffer;
 
-  while (llread(fd, buffer) > 0);
+  for (int i = 0; i < 5; i++)
+  {
+    int l = llread(fd, buffer);
 
-  llclose(fd);
+    // printf("BUFFER FD %p\n", buffer);
+
+    // for (int i = 0; i < l; i++)
+    // {
+    //   printf("BYTE %d IS %x\n", i, buffer[i]);
+    //   fflush(stdout);
+    // }
+    
+  }
+  
+  if(llclose(fd) < 0)
+    return -1;
 
   return 0;
 }
