@@ -72,9 +72,27 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
         }
     }
 
-    a[0] = BCC2;
-    a[1] = FLAG;
-    res = write(fd, a, 2);
+    if (BCC2 == FLAG)
+    {
+        a[0] = ESC;
+        a[1] = EFLAG;
+        a[2] = FLAG;
+        res = write(fd, a, 3);
+    }
+    else if (BCC2 == ESC)
+    {
+        a[0] = ESC;
+        a[1] = EESC;
+        a[2] = FLAG;
+        res = write(fd, a, 3);
+    }
+    else
+    {
+        a[0] = BCC2;
+        a[1] = FLAG;
+        res = write(fd, a, 2);
+    }
+
     if (res <= 0)
     {
         printf("Could not write to serial port.\n");
@@ -228,8 +246,13 @@ int llwrite(int port, unsigned char *buffer, int length)
         t->state = sframe_getState(input, t);
         if (t->state == BCC2_REJ)
         {
-            // printf("BCC2 REJECTED\n");
+            printf("BCC2 REJECTED (Nr=%d, C=%x) received.\n", t->seqnumber, REJ(t->seqnumber));
             total = send_iframe(port, t->seqnumber, t->buffer, t->length);
+        }
+        else if (t->state == RR_DUP)
+        {
+            printf("RR DUP (Nr=%d, C=%x) received.\n", t->seqnumber, RR(t->seqnumber));
+            return total;
         }
     }
 
@@ -269,23 +292,30 @@ int llread(int port, unsigned char *buffer)
             if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
                 return -1;
         }
+        else if(t->state == RR_DUP)
+        {
+            printf("RR DUPLICATED\n");
+            if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
+                return -1;
+        }
     }
 
-    printf("BCC2 RECEIVED SUCCESSFULLY\n");
+    printf("BCC2 RECEIVED SUCCESSFULLY %x\n", t->bcc2);
     t->seqnumber = !t->seqnumber;
     if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
         return -1;
 
-    printf("INSIDE LLREAD %p \n", buffer);
-    
+    // printf("INSIDE LLREAD %p \n", buffer);
+
     return t->i;
 }
 
 int llclose(int port)
 {
+    t = sframe_init_stm(port, t->u, t);
+    t->expected_c = DISC;
 
     printf("Closing port connection...\n");
-    t->expected_c = DISC;
 
     if (t->u == SENDER)
     {
@@ -308,10 +338,9 @@ int llclose(int port)
         }
         else if (res == 0)
         {
-            if (t->num_retr > 0)
+            if (t->num_retr > 0 && t->u == SENDER)
             {
-                unsigned char A = t->u == SENDER ? A1 : A2;
-                if (send_sframe(t->port, A, DISC) == -1)
+                if (send_sframe(t->port, A1, DISC) == -1)
                     return -1;
                 t->num_retr--;
             }
@@ -333,13 +362,15 @@ int llclose(int port)
     }
     else
     {
-        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
+        t = sframe_init_stm(port, t->u, t);
+        t->expected_c = UA;
         t->expected_a = A2;
+
+        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
 
         if (send_sframe(t->port, A2, DISC) == -1)
             return -1;
 
-        t->expected_c = UA;
         while (t->state != STOP)
         {
             unsigned char input;

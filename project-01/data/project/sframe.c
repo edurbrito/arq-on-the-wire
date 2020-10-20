@@ -51,10 +51,12 @@ fstate sframe_aState(unsigned char input, pframe *t)
         t->c = input;
         return C_RCV;
     }
-    else if (input == FLAG)
-        return FLAG_RCV;
+    else if (input == RR(t->seqnumber))
+        return RR_DUP;
     else if (input == REJ(t->seqnumber))
         return BCC2_REJ;
+    else if (input == FLAG)
+        return FLAG_RCV;
     return START;
 }
 

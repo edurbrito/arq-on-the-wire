@@ -43,6 +43,7 @@ typedef enum // Frame States
     FLAG_RCV,
     A_RCV,
     C_RCV,
+    RR_DUP,
     BCC1_OK,
     DATA_RCV,
     ESC_RCV,

@@ -57,6 +57,8 @@ fstate iframe_aState(unsigned char input, pframe *t)
         t->c = input;
         return C_RCV;
     }
+    else if (input == CI(!t->seqnumber))
+        return RR_DUP;
     else if (input == FLAG)
         return FLAG_RCV;
     return START;
