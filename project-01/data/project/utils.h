@@ -29,7 +29,7 @@
 #define EFLAG 0x5e
 #define EESC  0x5d
 
-#define MAX_SIZE 50
+#define MAX_SIZE 256
 
 typedef enum // User Type
 {

@@ -16,7 +16,7 @@ pframe *iframe_init_stm(int port, user u, pframe *t)
     }
     if (t->buffer != NULL)
         free(t->buffer);
-    t->buffer = malloc((MAX_SIZE + 1) * sizeof(char));
+    t->buffer = malloc((MAX_SIZE + 1) * 2 * sizeof(char));
     t->i = 0;
     t->bcc2 = 0;
 

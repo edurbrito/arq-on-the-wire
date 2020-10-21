@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "app.h"
 #include "sender.h"
 
@@ -19,18 +20,29 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  int fd = 0;
+  int fd = 0, file = 0;
+
+  file = open(argv[2], O_RDONLY);
+
+  struct stat st;
+  stat(argv[2], &st);
+  off_t size = st.st_size;
 
   if ((fd = llopen(atoi(argv[1]), SENDER)) <= 0)
     return -1;
 
-  for (size_t i = 0; i < 5; i++)
-  {
-    unsigned char a[] = {'a', FLAG, ESC, ESC, ESC, ESC, ESC, ESC, FLAG};
-    llwrite(fd, a, strlen(a));
-  }
+  long int total = 0;
 
-  if(llclose(fd) < 0)
+  while (total < size)
+  {
+    unsigned char buffer[MAX_SIZE];
+    int l = MAX_SIZE > (size - total) ? size - total : MAX_SIZE;
+    read(file, buffer, l);
+    total += llwrite(fd, buffer, l);
+  }
+  
+  close(file);
+  if (llclose(fd) < 0)
     return -1;
 
   return 0;

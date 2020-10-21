@@ -305,7 +305,7 @@ int llread(int port, unsigned char *buffer)
     if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
         return -1;
 
-    // printf("INSIDE LLREAD %p \n", buffer);
+    memcpy(buffer, t->buffer, t->i);
 
     return t->i;
 }
