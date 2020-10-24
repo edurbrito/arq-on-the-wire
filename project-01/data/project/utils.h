@@ -29,6 +29,13 @@
 #define EFLAG 0x5e
 #define EESC  0x5d
 
+#define DATA    1
+#define STARTP  2
+#define END     3
+
+#define FILE_SIZE 0
+#define FILE_NAME 1
+
 #define MAX_SIZE 256
 
 typedef enum // User Type
