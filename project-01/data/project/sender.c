@@ -32,11 +32,40 @@ int main(int argc, char **argv)
     return -1;
   
   long int total = 0;
-
-  unsigned char control_package_start[20] = {STARTP, FILE_SIZE, sizeof(size), size, FILE_NAME, strlen(argv[2]), argv[2],'\0'};
-  unsigned char control_package_end[20] = {END, FILE_SIZE, sizeof(size), size, FILE_NAME, strlen(argv[2]), argv[2],'\0'};
   
-  llwrite(fd, control_package_start, strlen(control_package_start));
+
+  int size_file = (int)size;
+  
+  int count = 0;
+  printf("HERE + %d\n", size_file);
+  while (size_file != 0) {
+      size_file /= 10;     
+      ++count;
+  }
+
+  char size_hex[10];
+  sprintf(size_hex,"%ld" ,size);
+  
+  int control_package_size = 5 + count + strlen(argv[2]);
+
+  unsigned char control_package_start[control_package_size];
+  unsigned char control_package_end[control_package_size];
+
+  control_package_start[0] = STARTP;
+  control_package_start[1] = FILE_SIZE;
+  control_package_start[2] = count;
+  for (int i=1; i<count+1;i++)
+  {
+    control_package_start[i+2] = (size_hex[i-1]);
+  }
+  control_package_start[3+count] = FILE_NAME;
+  control_package_start[4+count] = strlen(argv[2]);
+  for (int i=1; i<=strlen(argv[2]);i++)
+  {
+    control_package_start[4+count+i] = argv[2][i-1];
+  }
+  
+  llwrite(fd, control_package_start, control_package_size);
   
   int sequence_number = 0;
   
@@ -56,23 +85,18 @@ int main(int argc, char **argv)
     l -= 4;
 
     read(file, data, l);
-
-    printf("%u\n", data);
-    printf("%u\n", data_info);
     
     strcpy(data_package,data_info);
     memcpy(data_package+strlen(data_info),data,sizeof(data));
-
-    printf("%u", data_package);
     
     total += llwrite(fd, data_package, l);
     sequence_number++;
-    printf("NUMBER %d", sequence_number);
     
   }
 
-  llwrite(fd, control_package_end, strlen(control_package_end));
-  
+  control_package_start[0] = END;
+  llwrite(fd, control_package_start, control_package_size);
+
   close(file);
   if (llclose(fd) < 0)
     return -1;

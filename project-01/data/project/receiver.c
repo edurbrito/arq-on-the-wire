@@ -31,6 +31,10 @@ int main(int argc, char **argv)
   if ((fd = llopen(atoi(argv[1]), RECEIVER)) <= 0)
     return -1;
 
+  /*unsigned char *buffer = malloc(MAX_SIZE* sizeof(char));
+  int l = llread(fd, buffer);
+  l = llread(fd, buffer);*/
+
 
   long int total = 0;
   unsigned char *buffer = malloc(MAX_SIZE* sizeof(char));
