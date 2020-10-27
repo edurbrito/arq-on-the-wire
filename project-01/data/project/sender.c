@@ -105,7 +105,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  int fd = 0, file = 0;
+  int fd = 0, file = 0, logs = 0, old_stdout = dup(STDOUT_FILENO);
+
+  logs = open("logs/s.log", O_WRONLY | O_CREAT | O_TRUNC, 0777);
+  dup2(logs, STDOUT_FILENO);
 
   if ((fd = llopen(atoi(argv[1]), SENDER)) < 0)
   {
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
   stat(argv[2], &st);
   off_t size = st.st_size;
 
-  if(send_ctrl_packet(STARTP, fd, size, argv[2]) <= 0)
+  if (send_ctrl_packet(STARTP, fd, size, argv[2]) <= 0)
     return -1;
 
   long int total = 0;
@@ -134,21 +137,25 @@ int main(int argc, char **argv)
     unsigned char buffer[MAX_SIZEP];
     int l = MAX_SIZEP > (size - total) ? size - total : MAX_SIZEP;
     int r = 0;
-    if((r = read(file, buffer, l)) < l){
+    if ((r = read(file, buffer, l)) < l)
+    {
       printf("Error when reading from file to be sent.\n");
     }
     total += r;
-    if(send_data_packet(fd, nr % 255, buffer, r) <= 0)
+    if (send_data_packet(fd, nr % 255, buffer, r) <= 0)
       return -1;
     nr++;
   }
 
-  if(send_ctrl_packet(ENDP, fd, size, argv[2]) <= 0)
+  if (send_ctrl_packet(ENDP, fd, size, argv[2]) <= 0)
     return -1;
 
   close(file);
   if (llclose(fd) < 0)
     return -1;
+
+  fflush(stdout);
+  dup2(old_stdout, STDOUT_FILENO);
 
   return 0;
 }

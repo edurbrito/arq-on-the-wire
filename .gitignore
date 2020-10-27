@@ -2,3 +2,7 @@
 *.o
 
 .vscode/
+
+project-01/data/project/logs/
+
+project-01/data/project/tests/

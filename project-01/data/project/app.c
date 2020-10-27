@@ -264,6 +264,7 @@ int llwrite(int port, unsigned char *buffer, int length)
         else if (t->state == RR_DUP)
         {
             printf("RR DUP (Nr=%d, C=%x) received.\n", t->seqnumber, RR(t->seqnumber));
+            t->seqnumber = !t->seqnumber;
             return total;
         }
     }
@@ -295,7 +296,6 @@ int llread(int port, unsigned char *buffer)
             return -1;
         }
 
-        printf("STATE %d with INPUT %x\n", t->state, input);
         t->state = iframe_getState(input, t);
 
         if (t->state == BCC2_REJ)

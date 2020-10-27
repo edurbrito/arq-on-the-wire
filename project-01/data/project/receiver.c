@@ -55,7 +55,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  int fd = 0, file = 0;
+  int fd = 0, file = 0, logs = 0, old_stdout = dup(STDOUT_FILENO);
+
+  logs = open("logs/r.log", O_WRONLY | O_CREAT | O_TRUNC, 0777);
+  dup2(logs, STDOUT_FILENO);
 
   if ((fd = llopen(atoi(argv[1]), RECEIVER)) <= 0)
   {
@@ -151,6 +154,9 @@ int main(int argc, char **argv)
   close(file);
   if (llclose(fd) < 0)
     return -1;
+
+  fflush(stdout);
+  dup2(old_stdout, STDOUT_FILENO);
 
   return 0;
 }
