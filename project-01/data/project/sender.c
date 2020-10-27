@@ -2,12 +2,51 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "app.h"
 #include "sender.h"
+
+int parse_args(int argc, char **argv, int *port, char *filename)
+{
+  char *p = NULL;
+  int index, c;
+
+  opterr = 0;
+
+  while ((c = getopt(argc, argv, "p:")) != -1)
+    switch (c)
+    {
+    case 'p':
+      p = optarg;
+      break;
+    case '?':
+      if (optopt == 'p')
+        fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+      else if (isprint(optopt))
+        fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+      else
+        fprintf(stderr,
+                "Unknown option character `\\x%x'.\n",
+                optopt);
+      fflush(stdout);
+      return -1;
+    default:
+      return -1;
+    }
+
+  if(p != NULL)
+    *port = atoi(p);
+  else
+    return -1;
+
+  strcpy(filename, argv[optind]);
+
+  return atoi(p);
+}
 
 int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
 {
@@ -98,10 +137,12 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 
 int main(int argc, char **argv)
 {
+  int port;
+  char * filename = malloc(MAX_SIZE*sizeof(char));
 
-  if (argc < 3)
+  if (argc < 3 || parse_args(argc, argv, &port, filename) < 0)
   {
-    printf("Usage:\t./a.o serialport filename \n\tex: ./a.o 10 /images/p.gif\n");
+    printf("Usage:\t./a.o -p serialport filename \n\tex: ./a.o -p 10 /tests/p.gif\n");
     exit(1);
   }
 
@@ -110,23 +151,23 @@ int main(int argc, char **argv)
   logs = open("logs/s.log", O_WRONLY | O_CREAT | O_TRUNC, 0777);
   dup2(logs, STDOUT_FILENO);
 
-  if ((fd = llopen(atoi(argv[1]), SENDER)) < 0)
+  if ((fd = llopen(port, SENDER)) < 0)
   {
-    printf("Failed at llopen on port %d.\n", atoi(argv[1]));
+    printf("Failed at llopen on port %d.\n", port);
     return -1;
   }
 
-  if ((file = open(argv[2], O_RDONLY)) < 0)
+  if ((file = open(filename, O_RDONLY)) < 0)
   {
     printf("Failed to open file to be sent.\n");
     return -1;
   }
 
   struct stat st;
-  stat(argv[2], &st);
+  stat(filename, &st);
   off_t size = st.st_size;
 
-  if (send_ctrl_packet(STARTP, fd, size, argv[2]) <= 0)
+  if (send_ctrl_packet(STARTP, fd, size, filename) <= 0)
     return -1;
 
   long int total = 0;
@@ -147,10 +188,11 @@ int main(int argc, char **argv)
     nr++;
   }
 
-  if (send_ctrl_packet(ENDP, fd, size, argv[2]) <= 0)
+  if (send_ctrl_packet(ENDP, fd, size, filename) <= 0)
     return -1;
 
   close(file);
+  free(filename);
   if (llclose(fd) < 0)
     return -1;
 

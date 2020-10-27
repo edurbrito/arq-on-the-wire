@@ -2,11 +2,48 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include "app.h"
 #include "receiver.h"
+
+int parse_args(int argc, char **argv, int *port)
+{
+  char *p = NULL;
+  int index, c;
+
+  opterr = 0;
+
+  while ((c = getopt(argc, argv, "p:")) != -1)
+    switch (c)
+    {
+    case 'p':
+      p = optarg;
+      break;
+    case '?':
+      if (optopt == 'p')
+        fprintf(stdout, "Option -%c requires an argument.\n", optopt);
+      else if (isprint(optopt))
+        fprintf(stdout, "Unknown option `-%c'.\n", optopt);
+      else
+        fprintf(stdout,
+                "Unknown option character `\\x%x'.\n",
+                optopt);
+      fflush(stdout);
+      return -1;
+    default:
+      return -1;
+    }
+
+  if(p != NULL)
+    *port = atoi(p);
+  else
+    return -1;
+
+  return atoi(p);
+}
 
 int get_ctrl_packet_filesize(unsigned char *buffer)
 {
@@ -49,9 +86,12 @@ unsigned char *get_ctrl_packet_filename(unsigned char *buffer)
 int main(int argc, char **argv)
 {
 
-  if (argc < 2)
+  int port;
+
+  if (argc < 2 || parse_args(argc, argv, &port) < 0)
   {
-    printf("Usage:\t./b.o serialport \n\tex: ./a.o 11\n");
+    printf("Usage:\t./b.o -p serialport \n\tex: ./b.o -p 11\n");
+    fflush(stdout);
     exit(1);
   }
 
@@ -60,9 +100,9 @@ int main(int argc, char **argv)
   logs = open("logs/r.log", O_WRONLY | O_CREAT | O_TRUNC, 0777);
   dup2(logs, STDOUT_FILENO);
 
-  if ((fd = llopen(atoi(argv[1]), RECEIVER)) <= 0)
+  if ((fd = llopen(port, RECEIVER)) <= 0)
   {
-    printf("Failed at llopen on port %d.\n", atoi(argv[1]));
+    printf("Failed at llopen on port %d.\n", port);
     return -1;
   }
 
