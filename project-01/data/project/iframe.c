@@ -91,6 +91,7 @@ fstate iframe_dataState(unsigned char input, pframe *t)
 
         if (bcc2 != t->bcc2)
         {
+            t->bcc2 = 0;
             return BCC2_REJ;
         }
 

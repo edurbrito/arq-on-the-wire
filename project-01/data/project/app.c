@@ -105,7 +105,12 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
     if (t->buffer != NULL)
         free(t->buffer);
     t->buffer = malloc(length * sizeof(unsigned char));
-    strncpy(t->buffer, aux, length);
+    
+    for (int i = 0; i < length; i++)
+    {
+        t->buffer[i] = aux[i];
+    }
+    
     t->length = length;
 
     return length;
