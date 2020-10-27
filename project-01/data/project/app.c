@@ -141,7 +141,7 @@ int llopen(int port, user u)
     newtio.c_lflag = 0;
 
     newtio.c_cc[VTIME] = SVTIME; /* inter-character timer unused */
-    newtio.c_cc[VMIN] = SVMIN;   /* blocking read until 5 chars received */
+    newtio.c_cc[VMIN] = SVMIN;   /* blocking read until SVMIN chars received */
 
     tcflush(fd, TCIOFLUSH);
 
@@ -217,6 +217,12 @@ int llwrite(int port, unsigned char *buffer, int length)
     t->expected_c = RR(!t->seqnumber);
     int total = send_iframe(port, t->seqnumber, buffer, length);
 
+    if (total < 0)
+    {
+        printf("Aborting llwrite after send_iframe.\n");
+        return -1;
+    }
+
     while (t->state != STOP)
     {
         unsigned char input;
@@ -248,6 +254,12 @@ int llwrite(int port, unsigned char *buffer, int length)
         {
             printf("BCC2 REJECTED (Nr=%d, C=%x) received.\n", t->seqnumber, REJ(t->seqnumber));
             total = send_iframe(port, t->seqnumber, t->buffer, t->length);
+
+            if (total < 0)
+            {
+                printf("Aborting llwrite after send_iframe.\n");
+                return -1;
+            }
         }
         else if (t->state == RR_DUP)
         {
@@ -292,7 +304,7 @@ int llread(int port, unsigned char *buffer)
             if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
                 return -1;
         }
-        else if(t->state == RR_DUP)
+        else if (t->state == RR_DUP)
         {
             printf("RR DUPLICATED\n");
             if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
@@ -356,9 +368,10 @@ int llclose(int port)
 
     if (t->u == SENDER)
     {
-        printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n");
         if (send_sframe(t->port, A2, UA) == -1)
             return -1;
+
+        printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n");
     }
     else
     {
@@ -366,10 +379,10 @@ int llclose(int port)
         t->expected_c = UA;
         t->expected_a = A2;
 
-        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
-
         if (send_sframe(t->port, A2, DISC) == -1)
             return -1;
+
+        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
 
         while (t->state != STOP)
         {
@@ -399,6 +412,7 @@ int llclose(int port)
 
             t->state = sframe_getState(input, t);
         }
+
         printf("Frame UA received from SENDER. Closing port connection.\n");
     }
 
@@ -419,5 +433,5 @@ int llclose(int port)
         return -1;
     }
 
-    return 1;
+    return 0;
 }

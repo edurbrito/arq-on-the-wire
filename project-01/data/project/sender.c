@@ -52,7 +52,12 @@ int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
     buffer[i + j] = filename[j];
   }
 
-  llwrite(fd, buffer, total);
+  if (llwrite(fd, buffer, total) <= 0)
+  {
+    printf("Failed at llwrite when sending ctrl packet %d.\n", ctrl_type);
+    free(buffer);
+    return -1;
+  }
 
   free(buffer);
 
@@ -79,7 +84,12 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
     buffer[i + 4] = data[i];
   }
 
-  llwrite(fd, buffer, total);
+  if (llwrite(fd, buffer, total) <= 0)
+  {
+    printf("Failed at llwrite when sending data packet nr %d.\n", nr);
+    free(buffer);
+    return -1;
+  }
 
   free(buffer);
 
@@ -97,16 +107,24 @@ int main(int argc, char **argv)
 
   int fd = 0, file = 0;
 
-  if ((fd = llopen(atoi(argv[1]), SENDER)) <= 0)
+  if ((fd = llopen(atoi(argv[1]), SENDER)) < 0)
+  {
+    printf("Failed at llopen on port %d.\n", atoi(argv[1]));
     return -1;
+  }
 
-  file = open(argv[2], O_RDONLY);
+  if ((file = open(argv[2], O_RDONLY)) < 0)
+  {
+    printf("Failed to open file to be sent.\n");
+    return -1;
+  }
 
   struct stat st;
   stat(argv[2], &st);
   off_t size = st.st_size;
 
-  send_ctrl_packet(STARTP, fd, size, argv[2]);
+  if(send_ctrl_packet(STARTP, fd, size, argv[2]) <= 0)
+    return -1;
 
   long int total = 0;
   int nr = 0;
@@ -115,13 +133,18 @@ int main(int argc, char **argv)
   {
     unsigned char buffer[MAX_SIZEP];
     int l = MAX_SIZEP > (size - total) ? size - total : MAX_SIZEP;
-    read(file, buffer, l);
-    total += l;
-    send_data_packet(fd, nr % 255, buffer, l);
-    nr++;    
+    int r = 0;
+    if((r = read(file, buffer, l)) < l){
+      printf("Error when reading from file to be sent.\n");
+    }
+    total += r;
+    if(send_data_packet(fd, nr % 255, buffer, r) <= 0)
+      return -1;
+    nr++;
   }
 
-  send_ctrl_packet(ENDP, fd, size, argv[2]);
+  if(send_ctrl_packet(ENDP, fd, size, argv[2]) <= 0)
+    return -1;
 
   close(file);
   if (llclose(fd) < 0)

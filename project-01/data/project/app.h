@@ -12,8 +12,21 @@
 */
 int llopen(int port, user u);
 
+/**
+ * Writes length chars from buffer to port
+ * @param port to use for the transmission
+ * @param buffer to be sent to port
+ * @param length size of buffer
+ * @return -1 if an error occurred, or total bytes written
+*/
 int llwrite(int port, unsigned char * buffer, int length);
 
+/**
+ * Reads from port to buffer
+ * @param port to use for the transmission
+ * @param buffer to be filled with bytes read
+ * @return -1 if an error occurred, or total bytes read
+*/
 int llread(int port, unsigned char *buffer);
 
 /**

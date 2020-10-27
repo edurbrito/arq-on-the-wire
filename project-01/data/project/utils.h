@@ -30,7 +30,7 @@
 #define EESC  0x5d
 
 #define DATAP    1
-#define STARTP  2
+#define STARTP   2
 #define ENDP     3
 
 #define FILE_SIZEP 0
