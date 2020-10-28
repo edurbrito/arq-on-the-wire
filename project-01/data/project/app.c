@@ -265,6 +265,13 @@ int llwrite(int port, unsigned char *buffer, int length)
                 printf("Aborting llwrite after send_iframe.\n");
                 return -1;
             }
+
+            t->num_retr--;
+            if (t->num_retr <= 0)
+            {
+                printf("No correct answer received after many BCC2_REJ. Ending port connection.\n");
+                return -1;
+            }
         }
         else if (t->state == RR_DUP)
         {
@@ -305,15 +312,17 @@ int llread(int port, unsigned char *buffer)
 
         if (t->state == BCC2_REJ)
         {
-            printf("BCC2 REJECTED\n");
             if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
                 return -1;
+            printf("BCC2 REJECTED\n");
+            t->state = START;
         }
         else if (t->state == RR_DUP)
         {
-            printf("RR DUPLICATED\n");
             if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
                 return -1;
+            printf("RR DUPLICATED\n");
+            t->state = START;
         }
     }
 

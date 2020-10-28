@@ -29,9 +29,9 @@ pframe *iframe_init_stm(int port, user u, pframe *t)
 
 fstate iframe_startState(unsigned char input, pframe *t)
 {
+    t->i = 0;
     if (input == FLAG)
     {
-        t->i = 0;
         t->flag1 = input;
         return FLAG_RCV;
     }
