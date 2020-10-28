@@ -11,7 +11,8 @@
 
 pframe *t;
 
-int logpf(int printf){
+int logpf(int printf)
+{
     fflush(stdout);
     return 0;
 }
@@ -110,12 +111,12 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
     if (t->buffer != NULL)
         free(t->buffer);
     t->buffer = malloc(length * sizeof(unsigned char));
-    
+
     for (int i = 0; i < length; i++)
     {
         t->buffer[i] = aux[i];
     }
-    
+
     t->length = length;
 
     return length;
@@ -386,10 +387,10 @@ int llclose(int port)
 
     if (t->u == SENDER)
     {
+        logpf(printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n"));
+
         if (send_sframe(t->port, A2, UA) == -1)
             return -1;
-
-        logpf(printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n"));
     }
     else
     {
