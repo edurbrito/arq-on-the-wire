@@ -17,7 +17,7 @@ pframe *iframe_init_stm(int port, user u, pframe *t)
     if (t->buffer != NULL)
         free(t->buffer);
     t->buffer = malloc((MAX_SIZE + 1) * 2 * sizeof(char));
-    t->i = 0;
+    t->length = 0;
     t->bcc2 = 0;
 
     t->state = START;
@@ -29,7 +29,7 @@ pframe *iframe_init_stm(int port, user u, pframe *t)
 
 fstate iframe_startState(unsigned char input, pframe *t)
 {
-    t->i = 0;
+    t->length = 0;
     if (input == FLAG)
     {
         t->flag1 = input;
@@ -84,10 +84,10 @@ fstate iframe_dataState(unsigned char input, pframe *t)
     }
     else if (input == FLAG)
     {
-        unsigned char bcc2 = t->buffer[t->i - 1];
+        unsigned char bcc2 = t->buffer[t->length - 1];
         t->bcc2 ^= bcc2; // Reverting the last XOR that was bcc2 itself
         t->flag2 = input;
-        t->i--;
+        t->length--;
 
         if (bcc2 != t->bcc2)
         {
@@ -98,9 +98,9 @@ fstate iframe_dataState(unsigned char input, pframe *t)
         return STOP;
     }
 
-    t->buffer[t->i] = input;
+    t->buffer[t->length] = input;
     t->bcc2 ^= input;
-    t->i++;
+    t->length++;
 
     return DATA_RCV;
 }
@@ -109,15 +109,15 @@ fstate iframe_escState(unsigned char input, pframe *t)
 {
     if (input == EFLAG)
     {
-        t->buffer[t->i] = FLAG;
+        t->buffer[t->length] = FLAG;
         t->bcc2 ^= FLAG;
     }
     else if (input == EESC)
     {
-        t->buffer[t->i] = ESC;
+        t->buffer[t->length] = ESC;
         t->bcc2 ^= ESC;
     }
-    t->i++;
+    t->length++;
     return DATA_RCV;
 }
 

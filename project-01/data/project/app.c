@@ -11,17 +11,22 @@
 
 pframe *t;
 
+int logpf(int printf){
+    fflush(stdout);
+    return 0;
+}
+
 int send_sframe(int fd, unsigned char A, unsigned char C)
 {
     unsigned char a[5] = {FLAG, A, C, A ^ C, FLAG};
     int res = write(fd, a, 5);
     if (res <= 0)
     {
-        printf("Could not write to serial port.\n");
+        logpf(printf("Could not write to serial port.\n"));
         perror("Error: ");
         return -1;
     }
-    printf("Sended sframe (C=%x) to port.\n", C);
+    logpf(printf("Sended sframe (C=%x) to port.\n", C));
 
     return res;
 }
@@ -35,7 +40,7 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
     int res = write(fd, a, 4);
     if (res <= 0)
     {
-        printf("Could not write to serial port.\n");
+        logpf(printf("Could not write to serial port.\n"));
         perror("Error: ");
         return -1;
     }
@@ -66,7 +71,7 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
 
         if (res <= 0)
         {
-            printf("Could not write to serial port.\n");
+            logpf(printf("Could not write to serial port.\n"));
             perror("Error: ");
             return -1;
         }
@@ -95,12 +100,12 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
 
     if (res <= 0)
     {
-        printf("Could not write to serial port.\n");
+        logpf(printf("Could not write to serial port.\n"));
         perror("Error: ");
         return -1;
     }
 
-    printf("Sended iframe (Ns=%d, C=%x) to port.\n", t->seqnumber, C);
+    logpf(printf("Sended iframe (Ns=%d, C=%x) to port. BCC2 %x\n", t->seqnumber, C, BCC2));
 
     if (t->buffer != NULL)
         free(t->buffer);
@@ -156,9 +161,9 @@ int llopen(int port, user u)
         return -1;
     }
 
-    printf("New termios structure set\n");
+    logpf(printf("New termios structure set\n"));
 
-    printf("Starting port connection...\n");
+    logpf(printf("Starting port connection...\n"));
 
     t->expected_a = A1;
     if (t->u == SENDER)
@@ -177,7 +182,7 @@ int llopen(int port, user u)
 
         if (res < 0)
         {
-            printf("Could not read from serial port.\n");
+            logpf(printf("Could not read from serial port.\n"));
             perror("Error: ");
             return -1;
         }
@@ -191,7 +196,7 @@ int llopen(int port, user u)
             }
             else if (t->num_retr <= 0)
             {
-                printf("No answer received. Ending port connection.\n");
+                logpf(printf("No answer received. Ending port connection.\n"));
                 return -1;
             }
         }
@@ -201,13 +206,13 @@ int llopen(int port, user u)
 
     if (t->u == RECEIVER)
     {
-        printf("Frame received. Connection accepted.\n");
+        logpf(printf("Frame received. Connection accepted.\n"));
         if (send_sframe(t->port, A1, UA) == -1)
             return -1;
     }
     else
     {
-        printf("Answer received. Connection established.\n");
+        logpf(printf("Answer received. Connection established.\n"));
     }
 
     return fd;
@@ -224,7 +229,7 @@ int llwrite(int port, unsigned char *buffer, int length)
 
     if (total < 0)
     {
-        printf("Aborting llwrite after send_iframe.\n");
+        logpf(printf("Aborting llwrite after send_iframe.\n"));
         return -1;
     }
 
@@ -235,7 +240,7 @@ int llwrite(int port, unsigned char *buffer, int length)
 
         if (res < 0)
         {
-            printf("Could not read from serial port.\n");
+            logpf(printf("Could not read from serial port.\n"));
             perror("Error: ");
             return -1;
         }
@@ -249,7 +254,7 @@ int llwrite(int port, unsigned char *buffer, int length)
             }
             else if (t->num_retr <= 0)
             {
-                printf("No answer received. Ending port connection.\n");
+                logpf(printf("No answer received. Ending port connection.\n"));
                 return -1;
             }
         }
@@ -257,31 +262,30 @@ int llwrite(int port, unsigned char *buffer, int length)
         t->state = sframe_getState(input, t);
         if (t->state == BCC2_REJ)
         {
-            printf("BCC2 REJECTED (Nr=%d, C=%x) received.\n", t->seqnumber, REJ(t->seqnumber));
+            logpf(printf("BCC2 REJECTED (Nr=%d, C=%x) received.\n", t->seqnumber, REJ(t->seqnumber)));
             total = send_iframe(port, t->seqnumber, t->buffer, t->length);
 
             if (total < 0)
             {
-                printf("Aborting llwrite after send_iframe.\n");
+                logpf(printf("Aborting llwrite after send_iframe.\n"));
                 return -1;
             }
 
             t->num_retr--;
             if (t->num_retr <= 0)
             {
-                printf("No correct answer received after many BCC2_REJ. Ending port connection.\n");
+                logpf(printf("No correct answer received after many BCC2_REJ. Ending port connection.\n"));
                 return -1;
             }
         }
         else if (t->state == RR_DUP)
         {
-            printf("RR DUP (Nr=%d, C=%x) received.\n", t->seqnumber, RR(t->seqnumber));
-            t->seqnumber = !t->seqnumber;
-            return total;
+            logpf(printf("RR DUP (Nr=%d, C=%x) received.\n", t->seqnumber, RR(t->seqnumber)));
+            t->state = START;
         }
     }
 
-    printf("RR (Nr=%d, C=%x) received.\n", !t->seqnumber, t->c);
+    logpf(printf("RR (Nr=%d, C=%x) received.\n", !t->seqnumber, t->c));
     t->seqnumber = !t->seqnumber;
 
     return total;
@@ -294,7 +298,7 @@ int llread(int port, unsigned char *buffer)
     t->expected_a = A1;
     t->expected_c = CI(t->seqnumber);
 
-    printf("Reading from port.\n");
+    logpf(printf("Reading from port.\n"));
 
     while (t->state != STOP)
     {
@@ -303,7 +307,7 @@ int llread(int port, unsigned char *buffer)
 
         if (res < 0)
         {
-            printf("Could not read from serial port.\n");
+            logpf(printf("Could not read from serial port.\n"));
             perror("Error: ");
             return -1;
         }
@@ -312,28 +316,28 @@ int llread(int port, unsigned char *buffer)
 
         if (t->state == BCC2_REJ)
         {
+            logpf(printf("BCC2 REJECTED\n"));
             if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
                 return -1;
-            printf("BCC2 REJECTED\n");
             t->state = START;
         }
         else if (t->state == RR_DUP)
         {
-            if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
+            logpf(printf("RR DUPLICATED\n"));
+            if (send_sframe(t->port, A1, RR(!t->seqnumber)) == -1)
                 return -1;
-            printf("RR DUPLICATED\n");
             t->state = START;
         }
     }
 
-    printf("BCC2 RECEIVED SUCCESSFULLY %x\n", t->bcc2);
+    logpf(printf("BCC2 RECEIVED SUCCESSFULLY %x\n", t->bcc2));
     t->seqnumber = !t->seqnumber;
     if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
         return -1;
 
-    memcpy(buffer, t->buffer, t->i);
+    memcpy(buffer, t->buffer, t->length);
 
-    return t->i;
+    return t->length;
 }
 
 int llclose(int port)
@@ -341,7 +345,7 @@ int llclose(int port)
     t = sframe_init_stm(port, t->u, t);
     t->expected_c = DISC;
 
-    printf("Closing port connection...\n");
+    logpf(printf("Closing port connection...\n"));
 
     if (t->u == SENDER)
     {
@@ -358,7 +362,7 @@ int llclose(int port)
 
         if (res < 0)
         {
-            printf("Could not read from serial port.\n");
+            logpf(printf("Could not read from serial port.\n"));
             perror("Error: ");
             return -1;
         }
@@ -372,7 +376,7 @@ int llclose(int port)
             }
             else if (t->num_retr <= 0)
             {
-                printf("No answer received. Ending port connection.\n");
+                logpf(printf("No answer received. Ending port connection.\n"));
                 return -1;
             }
         }
@@ -385,7 +389,7 @@ int llclose(int port)
         if (send_sframe(t->port, A2, UA) == -1)
             return -1;
 
-        printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n");
+        logpf(printf("Frame DISC received from RECEIVER. Sent last Acknowledgment.\n"));
     }
     else
     {
@@ -396,7 +400,7 @@ int llclose(int port)
         if (send_sframe(t->port, A2, DISC) == -1)
             return -1;
 
-        printf("Frame DISC received from SENDER. Sent frame DISC.\n");
+        logpf(printf("Frame DISC received from SENDER. Sent frame DISC.\n"));
 
         while (t->state != STOP)
         {
@@ -405,7 +409,7 @@ int llclose(int port)
 
             if (res < 0)
             {
-                printf("Could not read from serial port.\n");
+                logpf(printf("Could not read from serial port.\n"));
                 perror("Error: ");
                 return -1;
             }
@@ -419,7 +423,7 @@ int llclose(int port)
                 }
                 else if (t->num_retr <= 0)
                 {
-                    printf("No answer received. Ending port connection.\n");
+                    logpf(printf("No answer received. Ending port connection.\n"));
                     return -1;
                 }
             }
@@ -427,7 +431,7 @@ int llclose(int port)
             t->state = sframe_getState(input, t);
         }
 
-        printf("Frame UA received from SENDER. Closing port connection.\n");
+        logpf(printf("Frame UA received from SENDER. Closing port connection.\n"));
     }
 
     if (tcsetattr(port, TCSANOW, t->oldtio) != 0)
@@ -439,7 +443,7 @@ int llclose(int port)
     free(t->oldtio);
     free(t);
 
-    printf("Ending transmittion.\n");
+    logpf(printf("Ending transmittion.\n"));
 
     if (close(port) != 0)
     {

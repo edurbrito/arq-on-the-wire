@@ -75,7 +75,6 @@ typedef struct // Protocol Frame Struct
     unsigned int num_retr;
     unsigned int seqnumber;
     unsigned char * buffer;
-    unsigned int i;
     unsigned int length;
     struct termios * oldtio;
 } pframe;
