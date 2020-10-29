@@ -252,8 +252,14 @@ int llwrite(int port, unsigned char *buffer, int length)
         {
             if (t->num_retr > 0)
             {
-                if (send_iframe(t->port, t->seqnumber, t->buffer, t->length) == -1)
+                total = send_iframe(port, t->seqnumber, t->buffer, t->length);
+
+                if (total < 0)
+                {
+                    logpf(printf("DTL ##### Aborting llwrite after send_iframe.\n"));
                     return -1;
+                }
+
                 t->num_retr--;
             }
             else if (t->num_retr <= 0)
@@ -295,18 +301,20 @@ int llwrite(int port, unsigned char *buffer, int length)
     return total;
 }
 
+// TEST
 #include <time.h>
 
 // INTERRUPTION TEST
 // ############################
 // void sighandler(int signal)
 // {
-//     logpf(printf("TST #####  SIGNAL RECEIVED\n"));
+//     logpf(printf("TST ##### SIGNAL RECEIVED\n"));
 //     sleep(3 + rand() % 3);
 // }
 
 int llread(int port, unsigned char *buffer)
 {
+    // TEST
     srand(12);
     int ch = 0;
     t = iframe_init_stm(port, RECEIVER, t);

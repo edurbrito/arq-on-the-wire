@@ -45,6 +45,17 @@ int parse_args(int argc, char **argv, int *port)
   return atoi(p);
 }
 
+void user_message(int stdout, char * filename, int total, int size){
+  char str[256];
+  float percentage = (float)(1.0*total/size) * 100.0;
+  int l = sprintf(str, "\rDownloading %s    |    Please Wait... %.0f%%", filename, percentage);
+
+  if(total == size){
+      l = sprintf(str, "\rDownloading %s    |    Complete %.0f%%      \n", filename, percentage);
+  }
+  write(stdout, str, l);
+}
+
 int get_ctrl_packet_filesize(unsigned char *buffer)
 {
   if (buffer[1] == FILE_SIZEP)
@@ -81,6 +92,22 @@ unsigned char *get_ctrl_packet_filename(unsigned char *buffer)
   }
 
   return NULL;
+}
+
+int get_data_packet_size(unsigned char * buffer, int nr, int lread){
+  unsigned char C = buffer[0];
+  unsigned char N = buffer[1];
+  unsigned char L2 = buffer[2];
+  unsigned char L1 = buffer[3];
+
+  int l2 = (int) L2;
+  int l1 = (int) L1;
+  int l = 256 * l2 + l1;
+
+  if(C != DATAP || (int) N != nr || l != lread)
+    return -1;
+  
+  return l;  
 }
 
 int main(int argc, char **argv)
@@ -151,12 +178,12 @@ int main(int argc, char **argv)
   }
 
   long int total = 0;
-  int w = 0;
+  int w = 0, nr = 0;
 
   while (total < filesize)
   {
     int l = llread(fd, buffer);
-    if (l < 0)
+    if (l < 0 || get_data_packet_size(buffer, nr % 255, l - 4) < 0)
     {
       printf("APP ##### Failed at llread when receiving data packet.\n");
       free(buffer);
@@ -179,6 +206,9 @@ int main(int argc, char **argv)
     }
 
     total += w;
+    nr += 1;
+
+    user_message(old_stdout, filename, total, filesize);
   }
 
   while (!ctrl_end)
