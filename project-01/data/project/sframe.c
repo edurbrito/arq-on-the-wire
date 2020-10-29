@@ -5,7 +5,6 @@
 #include <termios.h>
 #include <string.h>
 #include "sframe.h"
-#include "app.h"
 
 pframe *sframe_init_stm(int port, user u, pframe *t)
 {

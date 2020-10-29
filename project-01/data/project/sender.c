@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "app.h"
+#include "datalink.h"
 #include "sender.h"
 
 int parse_args(int argc, char **argv, int *port, char *filename)
@@ -25,12 +25,12 @@ int parse_args(int argc, char **argv, int *port, char *filename)
       break;
     case '?':
       if (optopt == 'p')
-        fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+        fprintf(stderr, "APP ##### Option -%c requires an argument.\n", optopt);
       else if (isprint(optopt))
-        fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+        fprintf(stderr, "APP ##### Unknown option `-%c'.\n", optopt);
       else
         fprintf(stderr,
-                "Unknown option character `\\x%x'.\n",
+                "APP ##### Unknown option character `\\x%x'.\n",
                 optopt);
       fflush(stdout);
       return -1;
@@ -38,7 +38,7 @@ int parse_args(int argc, char **argv, int *port, char *filename)
       return -1;
     }
 
-  if(p != NULL)
+  if (p != NULL)
     *port = atoi(p);
   else
     return -1;
@@ -93,7 +93,7 @@ int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
 
   if (llwrite(fd, buffer, total) <= 0)
   {
-    printf("Failed at llwrite when sending ctrl packet %d.\n", ctrl_type);
+    printf("APP ##### Failed at llwrite when sending ctrl packet %d.\n", ctrl_type);
     free(buffer);
     return -1;
   }
@@ -125,7 +125,7 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 
   if (llwrite(fd, buffer, total) <= 0)
   {
-    printf("Failed at llwrite when sending data packet nr %d.\n", nr);
+    printf("APP ##### Failed at llwrite when sending data packet nr %d.\n", nr);
     free(buffer);
     return -1;
   }
@@ -138,11 +138,11 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 int main(int argc, char **argv)
 {
   int port;
-  char * filename = malloc(MAX_SIZE*sizeof(char));
+  char *filename = malloc(MAX_SIZE * sizeof(char));
 
   if (argc < 3 || parse_args(argc, argv, &port, filename) < 0)
   {
-    printf("Usage:\t./a.o -p serialport filename \n\tex: ./a.o -p 10 /tests/p.gif\n");
+    printf("Usage:\t./sender.o -p serialport filename \n\tex: ./sender.o -p 10 /tests/p.gif\n");
     exit(1);
   }
 
@@ -153,13 +153,13 @@ int main(int argc, char **argv)
 
   if ((fd = llopen(port, SENDER)) < 0)
   {
-    printf("Failed at llopen on port %d.\n", port);
+    printf("APP ##### Failed at llopen on port %d.\n", port);
     return -1;
   }
 
   if ((file = open(filename, O_RDONLY)) < 0)
   {
-    printf("Failed to open file to be sent.\n");
+    printf("APP ##### Failed to open file to be sent.\n");
     return -1;
   }
 
@@ -168,7 +168,10 @@ int main(int argc, char **argv)
   off_t size = st.st_size;
 
   if (send_ctrl_packet(STARTP, fd, size, filename) <= 0)
+  {
+    printf("APP ##### Failed to send ctrl packet %d.\n", STARTP);
     return -1;
+  }
 
   long int total = 0;
   int nr = 0;
@@ -180,21 +183,32 @@ int main(int argc, char **argv)
     int r = 0;
     if ((r = read(file, buffer, l)) < l)
     {
-      printf("Error when reading from file to be sent.\n");
+      printf("APP ##### Error when reading from file to be sent.\n");
     }
+
     total += r;
+
     if (send_data_packet(fd, nr % 255, buffer, r) <= 0)
+    {
+      printf("APP ##### Failed to send data packet %d.\n", nr % 255);
       return -1;
+    }
     nr++;
   }
 
   if (send_ctrl_packet(ENDP, fd, size, filename) <= 0)
+  {
+    printf("APP ##### Failed to send ctrl packet %d.\n", ENDP);
     return -1;
+  }
 
   close(file);
   free(filename);
   if (llclose(fd) < 0)
+  {
+    printf("APP ##### Erro with llclose.\n");
     return -1;
+  }
 
   fflush(stdout);
   dup2(old_stdout, STDOUT_FILENO);
