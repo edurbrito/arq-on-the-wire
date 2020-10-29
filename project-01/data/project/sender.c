@@ -10,55 +10,6 @@
 #include "datalink.h"
 #include "sender.h"
 
-int parse_args(int argc, char **argv, int *port, char *filename)
-{
-  char *p = NULL;
-  int index, c;
-
-  opterr = 0;
-
-  while ((c = getopt(argc, argv, "p:")) != -1)
-    switch (c)
-    {
-    case 'p':
-      p = optarg;
-      break;
-    case '?':
-      if (optopt == 'p')
-        fprintf(stderr, "APP ##### Option -%c requires an argument.\n", optopt);
-      else if (isprint(optopt))
-        fprintf(stderr, "APP ##### Unknown option `-%c'.\n", optopt);
-      else
-        fprintf(stderr,
-                "APP ##### Unknown option character `\\x%x'.\n",
-                optopt);
-      fflush(stdout);
-      return -1;
-    default:
-      return -1;
-    }
-
-  if (p != NULL)
-    *port = atoi(p);
-  else
-    return -1;
-
-  strcpy(filename, argv[optind]);
-
-  return atoi(p);
-}
-
-void user_message(int stdout, char * filename, int total, int size){
-  char str[256];
-  float percentage = (float)(1.0*total/size) * 100.0;
-  int l = sprintf(str, "\rUploading %s    |    Please Wait... %.0f%%", filename, percentage);
-
-  if(total == size){
-      l = sprintf(str, "\rUploading %s    |    Complete %.0f%%      \n", filename, percentage);
-  }
-  write(stdout, str, l);
-}
-
 int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
 {
 
@@ -205,7 +156,7 @@ int main(int argc, char **argv)
       return -1;
     }
     nr++;
-    user_message(old_stdout, filename, total, size);
+    send_user_message(old_stdout, filename, total, size, "Uploading");
   }
 
   if (send_ctrl_packet(ENDP, fd, size, filename) <= 0)

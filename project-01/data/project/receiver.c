@@ -9,53 +9,6 @@
 #include "datalink.h"
 #include "receiver.h"
 
-int parse_args(int argc, char **argv, int *port)
-{
-  char *p = NULL;
-  int index, c;
-
-  opterr = 0;
-
-  while ((c = getopt(argc, argv, "p:")) != -1)
-    switch (c)
-    {
-    case 'p':
-      p = optarg;
-      break;
-    case '?':
-      if (optopt == 'p')
-        fprintf(stdout, "Option -%c requires an argument.\n", optopt);
-      else if (isprint(optopt))
-        fprintf(stdout, "Unknown option `-%c'.\n", optopt);
-      else
-        fprintf(stdout,
-                "Unknown option character `\\x%x'.\n",
-                optopt);
-      fflush(stdout);
-      return -1;
-    default:
-      return -1;
-    }
-
-  if (p != NULL)
-    *port = atoi(p);
-  else
-    return -1;
-
-  return atoi(p);
-}
-
-void user_message(int stdout, char * filename, int total, int size){
-  char str[256];
-  float percentage = (float)(1.0*total/size) * 100.0;
-  int l = sprintf(str, "\rDownloading %s    |    Please Wait... %.0f%%", filename, percentage);
-
-  if(total == size){
-      l = sprintf(str, "\rDownloading %s    |    Complete %.0f%%      \n", filename, percentage);
-  }
-  write(stdout, str, l);
-}
-
 int get_ctrl_packet_filesize(unsigned char *buffer)
 {
   if (buffer[1] == FILE_SIZEP)
@@ -115,7 +68,7 @@ int main(int argc, char **argv)
 
   int port;
 
-  if (argc < 2 || parse_args(argc, argv, &port) < 0)
+  if (argc < 2 || parse_args(argc, argv, &port, NULL) < 0)
   {
     printf("Usage:\t./receiver.o -p serialport \n\tex: ./receiver.o -p 11\n");
     fflush(stdout);
@@ -208,7 +161,7 @@ int main(int argc, char **argv)
     total += w;
     nr += 1;
 
-    user_message(old_stdout, filename, total, filesize);
+    send_user_message(old_stdout, filename, total, filesize, "Downloading");
   }
 
   while (!ctrl_end)

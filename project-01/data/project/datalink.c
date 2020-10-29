@@ -11,12 +11,6 @@
 
 pframe *t;
 
-int logpf(int printf)
-{
-    fflush(stdout);
-    return 0;
-}
-
 int send_sframe(int fd, unsigned char A, unsigned char C)
 {
     unsigned char a[5] = {FLAG, A, C, A ^ C, FLAG};

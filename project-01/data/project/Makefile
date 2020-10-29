@@ -1,5 +1,5 @@
 C=gcc
-CDEPS=sframe.c iframe.c datalink.c
+CDEPS=sframe.c iframe.c datalink.c utils.c
 
 .PHONY: all
 
