@@ -155,8 +155,11 @@ int main(int argc, char **argv)
       printf("APP ##### Failed to send data packet %d.\n", nr % 255);
       return -1;
     }
+    
     nr++;
-    send_user_message(old_stdout, filename, total, size, "Uploading");
+    
+    if(logs > 0)
+      send_user_message(old_stdout, filename, total, size, "Uploading");
   }
 
   if (send_ctrl_packet(ENDP, fd, size, filename) <= 0)

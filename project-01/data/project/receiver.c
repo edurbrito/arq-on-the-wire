@@ -161,7 +161,8 @@ int main(int argc, char **argv)
     total += w;
     nr += 1;
 
-    send_user_message(old_stdout, filename, total, filesize, "Downloading");
+    if(logs > 0)
+      send_user_message(old_stdout, filename, total, filesize, "Downloading");
   }
 
   while (!ctrl_end)
