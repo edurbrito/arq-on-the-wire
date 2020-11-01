@@ -26,13 +26,12 @@ int get_ctrl_packet_filesize(unsigned char *buffer)
   return 0;
 }
 
-unsigned char *get_ctrl_packet_filename(unsigned char *buffer)
+unsigned char *get_ctrl_packet_filename(unsigned char *buffer, unsigned char *filename)
 {
   int l1 = buffer[2]; // FILE SIZE string size in chars
   if (buffer[3 + l1] == FILE_NAMEP)
   {
     int l2 = buffer[4 + l1]; // FILE NAME string size in chars
-    unsigned char *filename = malloc((l2 + 1) * sizeof(unsigned char)); // TEST : + 1
     int i;
     for (i = 0; i < l2; i++)
     {
@@ -86,35 +85,36 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  unsigned char *buffer = malloc(MAX_SIZE * sizeof(char));
+  unsigned char *ctrl = malloc(256 * sizeof(unsigned char));
+  unsigned char *filename = malloc(256 * sizeof(unsigned char));
+  unsigned char *buffer = malloc(MAX_SIZE * sizeof(unsigned char));
   int l = 0;
   int filesize;
-  unsigned char *filename;
 
   int ctrl_start = 0, ctrl_end = 0;
 
   while (!ctrl_start)
   {
-    l = llread(fd, buffer);
+    l = llread(fd, ctrl);
     if (l <= 0)
     {
       logpf(printf("APP ##### Failed at llread when receiving ctrl packet start.\n"));
-      free(buffer);
+      free(ctrl);
       return -1;
     }
 
-    if (buffer[0] == STARTP)
+    if (ctrl[0] == STARTP)
     {
 
       ctrl_start = 1;
 
-      if ((filesize = get_ctrl_packet_filesize(buffer)) <= 0)
+      if ((filesize = get_ctrl_packet_filesize(ctrl)) <= 0)
       {
         logpf(printf("APP ##### Failed at get ctrl packet start filesize %d.\n", filesize));
         ctrl_start = 0;
       }
 
-      if ((filename = get_ctrl_packet_filename(buffer)) == NULL)
+      if (get_ctrl_packet_filename(ctrl, filename) == NULL)
       {
         logpf(printf("APP ##### Failed at get ctrl packet start filename %s.\n", filename));
         ctrl_start = 0;
@@ -125,6 +125,7 @@ int main(int argc, char **argv)
   if ((file = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0777)) < 0)
   {
     logpf(printf("APP ##### Failed to open file to be written.\n"));
+    free(ctrl);
     free(buffer);
     free(filename);
     return -1;
@@ -141,6 +142,7 @@ int main(int argc, char **argv)
     if (l < 0 || get_data_packet_size(buffer, nr % 255, datasize) < 0) // -4 represents the app packet header
     {
       logpf(printf("APP ##### Failed at llread when receiving data packet.\n"));
+      free(ctrl);
       free(buffer);
       free(filename);
       return -1;
@@ -169,33 +171,37 @@ int main(int argc, char **argv)
 
   while (!ctrl_end)
   {
-    l = llread(fd, buffer);
+    l = llread(fd, ctrl);
     if (l <= 0)
     {
       logpf(printf("APP ##### Failed at llread when receiving ctrl packet end.\n"));
-      free(buffer);
+      free(ctrl);
       return -1;
     }
 
-    if (buffer[0] == ENDP)
+    if (ctrl[0] == ENDP)
     {
 
       ctrl_end = 1;
 
-      if (get_ctrl_packet_filesize(buffer) != filesize)
+      if (get_ctrl_packet_filesize(ctrl) != filesize)
       {
         logpf(printf("APP ##### Failed at get ctrl packet end filesize %d.\n", filesize));
         ctrl_end = 0;
       }
 
-      if (strcmp(get_ctrl_packet_filename(buffer), filename) != 0)
+      unsigned char * filename_aux = malloc(256 * sizeof(unsigned char));
+      if (strcmp(get_ctrl_packet_filename(ctrl, filename_aux), filename) != 0)
       {
         logpf(printf("APP ##### Failed at get ctrl packet end filename %s.\n", filename));
         ctrl_end = 0;
       }
+
+      free(filename_aux);
     }
   }
 
+  free(ctrl);
   free(buffer);
   free(filename);
 

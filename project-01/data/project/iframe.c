@@ -15,7 +15,7 @@ pframe *iframe_init_stm(int port, user u, pframe *t)
     }
     if (t->buffer != NULL)
         free(t->buffer);
-    t->buffer = malloc((MAX_SIZE + 1) * 2 * sizeof(char)); // Double for all-ESC case and + 1 for BCC2
+    t->buffer = malloc((MAX_SIZE + 1) * 2 * sizeof(unsigned char)); // Double for all-ESC case and + 1 for BCC2
     t->length = 0;
     t->bcc2 = 0;
 

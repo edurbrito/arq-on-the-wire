@@ -34,7 +34,7 @@
 #define FILE_SIZEP 0
 #define FILE_NAMEP 1
 
-#define MAX_SIZE 256 // Needs to be greater than the filename size + 5
+#define MAX_SIZE 256 // Needs to be greater than 4
 #define MAX_SIZEP MAX_SIZE - 4
 
 typedef enum // User Type
