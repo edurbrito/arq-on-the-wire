@@ -12,9 +12,7 @@
 
 #define SVTIME 30
 #define SVMIN 0
-
 #define MAX_RETR 3
-#define TIMEOUT 3
 
 #define FLAG 0x7E
 #define A1 0x03
@@ -36,7 +34,7 @@
 #define FILE_SIZEP 0
 #define FILE_NAMEP 1
 
-#define MAX_SIZE 256
+#define MAX_SIZE 256 // Needs to be greater than the filename size + 5
 #define MAX_SIZEP MAX_SIZE - 4
 
 typedef enum // User Type

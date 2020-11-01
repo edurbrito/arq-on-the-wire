@@ -20,10 +20,10 @@ int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
   while (aux != 0)
   {
     aux /= 10;
-    ++numbers;
+    ++numbers; // number of chars in filesize
   }
 
-  int total = 5 + numbers + filename_size;
+  int total = 5 + numbers + filename_size; // ctrl packet total size
 
   unsigned char *buffer = malloc(total * sizeof(unsigned char));
 
@@ -36,7 +36,7 @@ int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
   {
     aux = filesize % 10;
     filesize /= 10;
-    buffer[i + 3] = aux + '0';
+    buffer[i + 3] = aux + '0'; // saving filesize as string of chars
     i++;
   }
 
@@ -50,12 +50,12 @@ int send_ctrl_packet(int ctrl_type, int fd, long int filesize, char *filename)
 
   for (j = 0; j < filename_size; j++)
   {
-    buffer[i + j] = filename[j];
+    buffer[i + j] = filename[j]; // saving filename as string of chars
   }
 
   if (llwrite(fd, buffer, total) <= 0)
   {
-    printf("APP ##### Failed at llwrite when sending ctrl packet %d.\n", ctrl_type);
+    logpf(printf("APP ##### Failed at llwrite when sending ctrl packet %d.\n", ctrl_type));
     free(buffer);
     return -1;
   }
@@ -71,7 +71,7 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
   int l1 = length % 256;
   int l2 = length / 256;
 
-  int total = 4 + length;
+  int total = 4 + length; // data packet total size
 
   unsigned char *buffer = malloc(total * sizeof(unsigned char));
 
@@ -87,7 +87,7 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 
   if (llwrite(fd, buffer, total) <= 0)
   {
-    printf("APP ##### Failed at llwrite when sending data packet nr %d.\n", nr);
+    logpf(printf("APP ##### Failed at llwrite when sending data packet nr %d.\n", nr));
     free(buffer);
     return -1;
   }
@@ -100,11 +100,11 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 int main(int argc, char **argv)
 {
   int port;
-  char *filename = malloc(MAX_SIZE * sizeof(char));
+  char *filename = malloc(256 * sizeof(char));
 
   if (argc < 3 || parse_args(argc, argv, &port, filename) < 0)
   {
-    printf("Usage:\t./sender.o -p serialport filename \n\tex: ./sender.o -p 10 /tests/p.gif\n");
+    logpf(printf("Usage:\t./sender.o -p serialport filename \n\tex: ./sender.o -p 10 /tests/p.gif\n"));
     exit(1);
   }
 
@@ -115,13 +115,13 @@ int main(int argc, char **argv)
 
   if ((fd = llopen(port, SENDER)) < 0)
   {
-    printf("APP ##### Failed at llopen on port %d.\n", port);
+    logpf(printf("APP ##### Failed at llopen on port %d.\n", port));
     return -1;
   }
 
   if ((file = open(filename, O_RDONLY)) < 0)
   {
-    printf("APP ##### Failed to open file to be sent.\n");
+    logpf(printf("APP ##### Failed to open file to be sent.\n"));
     return -1;
   }
 
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 
   if (send_ctrl_packet(STARTP, fd, size, filename) <= 0)
   {
-    printf("APP ##### Failed to send ctrl packet %d.\n", STARTP);
+    logpf(printf("APP ##### Failed to send ctrl packet %d.\n", STARTP));
     return -1;
   }
 
@@ -145,14 +145,14 @@ int main(int argc, char **argv)
     int r = 0;
     if ((r = read(file, buffer, l)) < l)
     {
-      printf("APP ##### Error when reading from file to be sent.\n");
+      logpf(printf("APP ##### Error when reading from file to be sent.\n"));
     }
 
     total += r;
 
     if (send_data_packet(fd, nr % 255, buffer, r) <= 0)
     {
-      printf("APP ##### Failed to send data packet %d.\n", nr % 255);
+      logpf(printf("APP ##### Failed to send data packet %d.\n", nr % 255));
       return -1;
     }
     
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 
   if (send_ctrl_packet(ENDP, fd, size, filename) <= 0)
   {
-    printf("APP ##### Failed to send ctrl packet %d.\n", ENDP);
+    logpf(printf("APP ##### Failed to send ctrl packet %d.\n", ENDP));
     return -1;
   }
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
   free(filename);
   if (llclose(fd) < 0)
   {
-    printf("APP ##### Erro with llclose.\n");
+    logpf(printf("APP ##### Error with llclose.\n"));
     return -1;
   }
 

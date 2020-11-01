@@ -41,11 +41,9 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
     }
 
     size_t i;
-    unsigned char aux[length];
     for (i = 0; i < length; i++)
     {
         BCC2 ^= buffer[i];
-        aux[i] = buffer[i];
 
         if (buffer[i] == FLAG)
         {
@@ -108,7 +106,7 @@ int send_iframe(int fd, int ns, unsigned char *buffer, int length)
 
     for (int i = 0; i < length; i++)
     {
-        t->buffer[i] = aux[i];
+        t->buffer[i] = buffer[i];
     }
 
     t->length = length;
@@ -162,12 +160,13 @@ int llopen(int port, user u)
     t->expected_a = A1;
     if (t->u == SENDER)
     {
-        t->expected_c = UA;
-        if (send_sframe(t->port, A1, SET) == -1)
+        if (send_sframe(t->port, A1, SET) == -1) // SENDER sends SET message to RECEIVER
             return -1;
+
+        t->expected_c = UA; // SENDER expects UA message from RECEIVER
     }
     else if (t->u == RECEIVER)
-        t->expected_c = SET;
+        t->expected_c = SET; // RECEIVER expects SET message from SENDER
 
     while (t->state != STOP)
     {
@@ -184,7 +183,7 @@ int llopen(int port, user u)
         {
             if (t->num_retr > 0)
             {
-                if (send_sframe(t->port, A1, SET) == -1)
+                if (send_sframe(t->port, A1, SET) == -1) // SENDER sends SET message to RECEIVER again
                     return -1;
                 t->num_retr--;
             }
@@ -194,6 +193,10 @@ int llopen(int port, user u)
                 return -1;
             }
         }
+        else
+        {
+            t->num_retr = MAX_RETR;
+        }
 
         t->state = sframe_getState(input, t);
     }
@@ -201,7 +204,7 @@ int llopen(int port, user u)
     logpf(printf("DTL ##### SFRAME (C=%x, BCC1=%x) \tRECEIVED\n", t->c, t->bcc));
     if (t->u == RECEIVER)
     {
-        if (send_sframe(t->port, A1, UA) == -1)
+        if (send_sframe(t->port, A1, UA) == -1) // RECEIVER sends UA message to SENDER
             return -1;
     }
 
@@ -213,9 +216,9 @@ int llwrite(int port, unsigned char *buffer, int length)
 
     t = sframe_init_stm(port, SENDER, t);
 
+    int total = send_iframe(port, t->seqnumber, buffer, length); // SENDER sends IFRAME to RECEIVER
     t->expected_a = A1;
-    t->expected_c = RR(!t->seqnumber);
-    int total = send_iframe(port, t->seqnumber, buffer, length);
+    t->expected_c = RR(!t->seqnumber); // SENDER expects RR message from RECEIVER
 
     // DUP TEST
     // ############################
@@ -246,7 +249,7 @@ int llwrite(int port, unsigned char *buffer, int length)
         {
             if (t->num_retr > 0)
             {
-                total = send_iframe(port, t->seqnumber, t->buffer, t->length);
+                total = send_iframe(port, t->seqnumber, t->buffer, t->length); // SENDER sends IFRAME to RECEIVER again
 
                 if (total < 0)
                 {
@@ -262,12 +265,17 @@ int llwrite(int port, unsigned char *buffer, int length)
                 return -1;
             }
         }
+        else
+        {
+            t->num_retr = MAX_RETR;
+        }
 
         t->state = sframe_getState(input, t);
+
         if (t->state == BCC2_REJ)
         {
             logpf(printf("DTL ##### BCC2 REJECTED (Nr=%d, C=%x) \tRECEIVED\n", t->seqnumber, REJ(t->seqnumber)));
-            total = send_iframe(port, t->seqnumber, t->buffer, t->length);
+            total = send_iframe(port, t->seqnumber, t->buffer, t->length); // SENDER sends IFRAME to RECEIVER again
 
             if (total < 0)
             {
@@ -314,7 +322,7 @@ int llread(int port, unsigned char *buffer)
     t = iframe_init_stm(port, RECEIVER, t);
 
     t->expected_a = A1;
-    t->expected_c = CI(t->seqnumber);
+    t->expected_c = CI(t->seqnumber); // RECEIVER expects IFRAME from SENDER
 
     logpf(printf("DTL ##### Reading from port.\n"));
 
@@ -356,14 +364,14 @@ int llread(int port, unsigned char *buffer)
         if (t->state == BCC2_REJ)
         {
             logpf(printf("DTL ##### BCC2 REJECTED (C=%x) \tSENT\n", REJ(t->seqnumber)));
-            if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1)
+            if (send_sframe(t->port, A1, REJ(t->seqnumber)) == -1) // RECEIVER sends REJ message to SENDER
                 return -1;
             t->state = START;
         }
         else if (t->state == RR_DUP)
         {
             logpf(printf("DTL ##### DUP RR (C=%x) \tSENT\n", RR(!t->seqnumber)));
-            if (send_sframe(t->port, A1, RR(!t->seqnumber)) == -1)
+            if (send_sframe(t->port, A1, RR(!t->seqnumber)) == -1) // RECEIVER sends DUP message to SENDER
                 return -1;
             t->state = START;
         }
@@ -371,7 +379,7 @@ int llread(int port, unsigned char *buffer)
 
     logpf(printf("DTL ##### BCC2 SUCCESSFULLY (C=%2x, BCC2=%x) RECEIVED\n", t->c, t->bcc2));
     t->seqnumber = !t->seqnumber;
-    if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1)
+    if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1) // RECEIVER sends RR message to SENDER
         return -1;
 
     memcpy(buffer, t->buffer, t->length);
@@ -382,13 +390,13 @@ int llread(int port, unsigned char *buffer)
 int llclose(int port)
 {
     t = sframe_init_stm(port, t->u, t);
-    t->expected_c = DISC;
+    t->expected_c = DISC; // SENDER/RECEIVER expects DISC message from RECEIVER/SENDER
 
     logpf(printf("DTL ##### Closing port connection...\n"));
 
     if (t->u == SENDER)
     {
-        if (send_sframe(t->port, A1, DISC) == -1)
+        if (send_sframe(t->port, A1, DISC) == -1) // SENDER sends DISC message to RECEIVER
             return -1;
 
         t->expected_a = A2;
@@ -409,7 +417,7 @@ int llclose(int port)
         {
             if (t->num_retr > 0 && t->u == SENDER)
             {
-                if (send_sframe(t->port, A1, DISC) == -1)
+                if (send_sframe(t->port, A1, DISC) == -1) // SENDER sends DISC message to RECEIVER again
                     return -1;
                 t->num_retr--;
             }
@@ -419,27 +427,25 @@ int llclose(int port)
                 return -1;
             }
         }
+        else
+        {
+            t->num_retr = MAX_RETR;
+        }
 
         t->state = sframe_getState(input, t);
     }
 
-    if (t->u == SENDER)
+    if (t->u == RECEIVER)
     {
         logpf(printf("DTL ##### DISC (C=%x, BCC1=%x) \tRECEIVED\n", t->c, t->bcc));
 
-        if (send_sframe(t->port, A2, UA) == -1)
-            return -1;
-    }
-    else
-    {
         t = sframe_init_stm(port, t->u, t);
-        t->expected_c = UA;
-        t->expected_a = A2;
 
-        if (send_sframe(t->port, A2, DISC) == -1)
+        if (send_sframe(t->port, A2, DISC) == -1) // RECEIVER sends DISC message to SENDER
             return -1;
 
-        logpf(printf("DTL ##### DISC (C=%x, BCC1=%x) \tRECEIVED\n", t->c, t->bcc));
+        t->expected_c = UA; // RECEIVER expects UA message from SENDER
+        t->expected_a = A2;
 
         while (t->state != STOP)
         {
@@ -456,7 +462,7 @@ int llclose(int port)
             {
                 if (t->num_retr > 0)
                 {
-                    if (send_sframe(t->port, A2, DISC) == -1)
+                    if (send_sframe(t->port, A2, DISC) == -1) // RECEIVER sends DISC message to SENDER again
                         return -1;
                     t->num_retr--;
                 }
@@ -466,11 +472,22 @@ int llclose(int port)
                     return -1;
                 }
             }
+            else
+            {
+                t->num_retr = MAX_RETR;
+            }
 
             t->state = sframe_getState(input, t);
         }
 
         logpf(printf("DTL ##### UA (C=%x, BCC1=%x) \tRECEIVED\n", t->c, t->bcc));
+    }
+    else
+    {
+        logpf(printf("DTL ##### DISC (C=%x, BCC1=%x) \tRECEIVED\n", t->c, t->bcc));
+
+        if (send_sframe(t->port, A2, UA) == -1) // SENDER sends UA message to RECEIVER
+            return -1;
     }
 
     if (tcsetattr(port, TCSANOW, t->oldtio) != 0)
