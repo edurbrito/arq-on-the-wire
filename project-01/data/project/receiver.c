@@ -71,7 +71,7 @@ int main(int argc, char **argv)
   {
     logpf(printf("Usage:\t./receiver.o -p serialport \n\tex: ./receiver.o -p 11\n"));
     fflush(stdout);
-    exit(1);
+    return -1;
   }
 
   int fd = 0, file = 0, logs = 0, old_stdout = dup(STDOUT_FILENO);
@@ -85,8 +85,8 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  unsigned char *ctrl = malloc(256 * sizeof(unsigned char));
-  unsigned char *filename = malloc(256 * sizeof(unsigned char));
+  unsigned char ctrl[300] = {0};
+  unsigned char filename[256] = {0};
   unsigned char *buffer = malloc(MAX_SIZE * sizeof(unsigned char));
   int l = 0;
   int filesize;
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     if (l <= 0)
     {
       logpf(printf("APP ##### Failed at llread when receiving ctrl packet start.\n"));
-      free(ctrl);
+      free(buffer);
       return -1;
     }
 
@@ -125,9 +125,7 @@ int main(int argc, char **argv)
   if ((file = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0777)) < 0)
   {
     logpf(printf("APP ##### Failed to open file to be written.\n"));
-    free(ctrl);
     free(buffer);
-    free(filename);
     return -1;
   }
 
@@ -142,9 +140,7 @@ int main(int argc, char **argv)
     if (l < 0 || get_data_packet_size(buffer, nr % 255, datasize) < 0) // -4 represents the app packet header
     {
       logpf(printf("APP ##### Failed at llread when receiving data packet.\n"));
-      free(ctrl);
       free(buffer);
-      free(filename);
       return -1;
     }
 
@@ -175,7 +171,7 @@ int main(int argc, char **argv)
     if (l <= 0)
     {
       logpf(printf("APP ##### Failed at llread when receiving ctrl packet end.\n"));
-      free(ctrl);
+      free(buffer);
       return -1;
     }
 
@@ -190,20 +186,17 @@ int main(int argc, char **argv)
         ctrl_end = 0;
       }
 
-      unsigned char * filename_aux = malloc(256 * sizeof(unsigned char));
-      if (strcmp(get_ctrl_packet_filename(ctrl, filename_aux), filename) != 0)
+      unsigned char filename_aux[256] = {0};
+      if (strncmp(get_ctrl_packet_filename(ctrl, filename_aux), filename, strlen(filename)) != 0)
       {
         logpf(printf("APP ##### Failed at get ctrl packet end filename %s.\n", filename));
         ctrl_end = 0;
       }
 
-      free(filename_aux);
     }
   }
 
-  free(ctrl);
   free(buffer);
-  free(filename);
 
   close(file);
   if (llclose(fd) < 0)

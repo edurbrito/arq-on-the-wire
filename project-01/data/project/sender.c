@@ -100,12 +100,12 @@ int send_data_packet(int fd, int nr, unsigned char *data, int length)
 int main(int argc, char **argv)
 {
   int port;
-  char *filename = malloc(256 * sizeof(char));
+  char filename[256] = {0};
 
   if (argc < 3 || parse_args(argc, argv, &port, filename) < 0)
   {
     logpf(printf("Usage:\t./sender.o -p serialport filename \n\tex: ./sender.o -p 10 /tests/p.gif\n"));
-    exit(1);
+    return -1;
   }
 
   int fd = 0, file = 0, logs = 0, old_stdout = dup(STDOUT_FILENO);
@@ -169,7 +169,6 @@ int main(int argc, char **argv)
   }
 
   close(file);
-  free(filename);
   if (llclose(fd) < 0)
   {
     logpf(printf("APP ##### Error with llclose.\n"));
