@@ -249,7 +249,7 @@ int llwrite(int port, unsigned char *buffer, int length)
         {
             if (t->num_retr > 0)
             {
-                total = send_iframe(port, t->seqnumber, t->buffer, t->length); // SENDER sends IFRAME to RECEIVER again
+                total = send_iframe(port, t->seqnumber, buffer, length); // SENDER sends IFRAME to RECEIVER again
 
                 if (total < 0)
                 {
@@ -275,7 +275,7 @@ int llwrite(int port, unsigned char *buffer, int length)
         if (t->state == BCC2_REJ)
         {
             logpf(printf("DTL ##### BCC2 REJECTED (Nr=%d, C=%x) \tRECEIVED\n", t->seqnumber, REJ(t->seqnumber)));
-            total = send_iframe(port, t->seqnumber, t->buffer, t->length); // SENDER sends IFRAME to RECEIVER again
+            total = send_iframe(port, t->seqnumber, buffer, length); // SENDER sends IFRAME to RECEIVER again
 
             if (total < 0)
             {
@@ -313,6 +313,7 @@ int llwrite(int port, unsigned char *buffer, int length)
 //     logpf(printf("TST ##### SIGNAL RECEIVED\n"));
 //     sleep(3 + rand() % 3);
 // }
+// int cccc = 0;
 
 int llread(int port, unsigned char *buffer)
 {
@@ -370,8 +371,8 @@ int llread(int port, unsigned char *buffer)
         }
         else if (t->state == RR_DUP)
         {
-            logpf(printf("DTL ##### DUP RR (C=%x) \tSENT\n", RR(!t->seqnumber)));
-            if (send_sframe(t->port, A1, RR(!t->seqnumber)) == -1) // RECEIVER sends DUP message to SENDER
+            logpf(printf("DTL ##### DUP RR (C=%x) \tSENT\n", RR(t->seqnumber)));
+            if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1) // RECEIVER sends DUP message to SENDER
                 return -1;
             t->state = START;
         }
@@ -379,6 +380,16 @@ int llread(int port, unsigned char *buffer)
 
     logpf(printf("DTL ##### BCC2 SUCCESSFULLY (C=%2x, BCC2=%x) RECEIVED\n", t->c, t->bcc2));
     t->seqnumber = !t->seqnumber;
+    
+    // if(t->bcc2 == 0xf2 && cccc < 5){
+
+    //     cccc++;
+        
+    //     memcpy(buffer, t->buffer, t->length);
+
+    //     return t->length;
+    // }
+
     if (send_sframe(t->port, A1, RR(t->seqnumber)) == -1) // RECEIVER sends RR message to SENDER
         return -1;
 
