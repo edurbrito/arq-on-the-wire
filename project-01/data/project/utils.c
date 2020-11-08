@@ -65,3 +65,9 @@ int logpf(int printf)
     fflush(stdout);
     return 0;
 }
+
+int prob(double p){
+    double prob = (double) rand() / RAND_MAX;
+    if(prob < p) return 1;
+    return 0;
+}

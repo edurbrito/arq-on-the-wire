@@ -105,4 +105,11 @@ int send_user_message(int stdout, char *filename, int total, int size, char *act
 */
 int logpf(int printf);
 
+/**
+ * Simulates an error based on some probability
+ * @param p probability
+ * @return 1 if error, 0 otherwise
+*/
+int prob(double p);
+
 #endif

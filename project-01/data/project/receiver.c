@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/time.h>
 #include "datalink.h"
 #include "receiver.h"
 
@@ -132,6 +133,12 @@ int main(int argc, char **argv)
   long int total = 0;
   int w = 0, nr = 0;
 
+  // srand(12);
+
+  // struct timeval tval_before, tval_after, tval_result;
+
+  // gettimeofday(&tval_before, NULL);
+
   while (total < filesize)
   {
     int l = llread(fd, buffer);
@@ -164,6 +171,12 @@ int main(int argc, char **argv)
     if(logs > 0)
       send_user_message(old_stdout, filename, total, filesize, "Downloading");
   }
+
+  // gettimeofday(&tval_after, NULL);
+
+  // timersub(&tval_after, &tval_before, &tval_result);
+
+  // printf("Time elapsed: %ld.%06ld\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
 
   while (!ctrl_end)
   {

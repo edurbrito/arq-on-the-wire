@@ -265,10 +265,10 @@ int llwrite(int port, unsigned char *buffer, int length)
                 return -1;
             }
         }
-        else
-        {
-            t->num_retr = MAX_RETR;
-        }
+        // else
+        // {
+        //     t->num_retr = MAX_RETR;
+        // }
 
         t->state = sframe_getState(input, t);
 
@@ -304,7 +304,7 @@ int llwrite(int port, unsigned char *buffer, int length)
 }
 
 // TEST
-#include <time.h>
+// #include <time.h>
 
 // INTERRUPTION TEST
 // ############################
@@ -318,8 +318,8 @@ int llwrite(int port, unsigned char *buffer, int length)
 int llread(int port, unsigned char *buffer)
 {
     // TEST
-    srand(12);
-    int ch = 0;
+    // srand(12);
+    // int ch = 0;
     t = iframe_init_stm(port, RECEIVER, t);
 
     t->expected_a = A1;
